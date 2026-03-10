@@ -28,7 +28,7 @@ final class SearchCommand extends Command
     {
         $this
             ->addArgument('class', InputArgument::REQUIRED, 'The document class name')
-            ->addOption('query', 'q', InputOption::VALUE_REQUIRED, 'Search query (default: *)')
+            ->addOption('query', null, InputOption::VALUE_REQUIRED, 'Search query (default: *)')
             ->addOption('query-by', null, InputOption::VALUE_REQUIRED, 'Comma-separated fields to search')
             ->addOption('filter', 'f', InputOption::VALUE_REQUIRED, 'Filter expression (Typesense syntax)')
             ->addOption('per-page', null, InputOption::VALUE_REQUIRED, 'Results per page');
