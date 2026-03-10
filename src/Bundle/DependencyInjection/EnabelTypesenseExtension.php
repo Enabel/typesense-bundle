@@ -8,6 +8,7 @@ use Enabel\Typesense\Bundle\Command\CreateCommand;
 use Enabel\Typesense\Bundle\Command\DropCommand;
 use Enabel\Typesense\Bundle\Command\ImportCommand;
 use Enabel\Typesense\Bundle\Command\SearchCommand;
+use Enabel\Typesense\Bundle\TypesenseClientFactory;
 use Enabel\Typesense\Client;
 use Enabel\Typesense\ClientInterface;
 use Enabel\Typesense\Doctrine\DoctrineDataProvider;
@@ -45,20 +46,10 @@ final class EnabelTypesenseExtension extends Extension
      */
     private function registerTypesenseClient(ContainerBuilder $container, array $clientConfig): void
     {
-        $parsed = parse_url($clientConfig['url']);
-        assert(is_array($parsed));
-
         $container->register('enabel_typesense.typesense_client', \Typesense\Client::class)
-            ->addArgument([
-                'api_key' => $clientConfig['api_key'],
-                'nodes' => [
-                    [
-                        'host' => $parsed['host'] ?? 'localhost',
-                        'port' => (string) ($parsed['port'] ?? 8108),
-                        'protocol' => $parsed['scheme'] ?? 'http',
-                    ],
-                ],
-            ]);
+            ->setFactory([TypesenseClientFactory::class, 'create'])
+            ->addArgument($clientConfig['url'])
+            ->addArgument($clientConfig['api_key']);
     }
 
     private function registerCoreServices(ContainerBuilder $container): void

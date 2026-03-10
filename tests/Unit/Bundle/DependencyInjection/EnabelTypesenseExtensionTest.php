@@ -8,6 +8,7 @@ use Enabel\Typesense\Bundle\Command\CreateCommand;
 use Enabel\Typesense\Bundle\Command\DropCommand;
 use Enabel\Typesense\Bundle\Command\ImportCommand;
 use Enabel\Typesense\Bundle\DependencyInjection\EnabelTypesenseExtension;
+use Enabel\Typesense\Bundle\TypesenseClientFactory;
 use Enabel\Typesense\ClientInterface;
 use Enabel\Typesense\Doctrine\DoctrineDataProvider;
 use Enabel\Typesense\Doctrine\DoctrineDenormalizer;
@@ -85,12 +86,36 @@ final class EnabelTypesenseExtensionTest extends TestCase
         ]);
 
         $definition = $container->getDefinition('enabel_typesense.typesense_client');
-        $args = $definition->getArguments();
 
-        self::assertSame('my-key', $args[0]['api_key']);
-        self::assertSame('ts.example.com', $args[0]['nodes'][0]['host']);
-        self::assertSame('443', $args[0]['nodes'][0]['port']);
-        self::assertSame('https', $args[0]['nodes'][0]['protocol']);
+        self::assertSame([TypesenseClientFactory::class, 'create'], $definition->getFactory());
+        self::assertSame('https://ts.example.com:443', $definition->getArgument(0));
+        self::assertSame('my-key', $definition->getArgument(1));
+    }
+
+    public function testItRegistersCustomDenormalizerAndDataProvider(): void
+    {
+        $container = $this->buildContainer([
+            'client' => [
+                'url' => 'http://localhost:8108',
+                'api_key' => '123',
+            ],
+            'collections' => [
+                'App\Entity\Product' => [
+                    'denormalizer' => 'app.custom_denormalizer',
+                    'data_provider' => 'app.custom_data_provider',
+                ],
+            ],
+        ]);
+
+        $clientDef = $container->getDefinition(ClientInterface::class);
+        $denormalizerMap = $clientDef->getArgument(4);
+        self::assertArrayHasKey('App\Entity\Product', $denormalizerMap);
+        self::assertSame('app.custom_denormalizer', (string) $denormalizerMap['App\Entity\Product']);
+
+        $importDef = $container->getDefinition(ImportCommand::class);
+        $dataProviderMap = $importDef->getArgument(2);
+        self::assertArrayHasKey('App\Entity\Product', $dataProviderMap);
+        self::assertSame('app.custom_data_provider', (string) $dataProviderMap['App\Entity\Product']);
     }
 
     /**

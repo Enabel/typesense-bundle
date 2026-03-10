@@ -163,6 +163,62 @@ final class IndexListenerTest extends TestCase
         self::assertTrue(true);
     }
 
+    public function testItSkipsUntrackedEntityOnPreRemove(): void
+    {
+        $listener = new IndexListener(
+            $this->client,
+            ['App\Entity\Unrelated'],
+            $this->logger,
+        );
+
+        $entity = new \stdClass();
+
+        $this->client->expects(self::never())->method('collection');
+
+        $event = $this->createEvent(PreRemoveEventArgs::class, $entity);
+        $listener->preRemove($event);
+    }
+
+    public function testItCatchesTypesenseErrorOnPreRemoveAndLogsWarning(): void
+    {
+        $entity = new class {
+            public int $id = 42;
+        };
+
+        $metadata = new DocumentMetadata(
+            className: $entity::class,
+            collection: 'products',
+            defaultSortingField: null,
+            idPropertyName: 'id',
+            idType: new IntType(),
+            fields: [],
+        );
+
+        $registry = $this->createMock(MetadataRegistryInterface::class);
+        $registry->method('get')->willReturn($metadata);
+
+        $collection = $this->createMock(CollectionInterface::class);
+        $collection->method('delete')->willThrowException(
+            new TypesenseClientError('Not found'),
+        );
+
+        $this->client->method('collection')->willReturn($collection);
+
+        $this->logger->expects(self::once())
+            ->method('warning')
+            ->with(self::stringContains('Not found'));
+
+        $listener = new IndexListener(
+            $this->client,
+            [$entity::class],
+            $this->logger,
+            $registry,
+        );
+
+        $event = $this->createEvent(PreRemoveEventArgs::class, $entity);
+        $listener->preRemove($event);
+    }
+
     /**
      * @template T of PostPersistEventArgs|PostUpdateEventArgs|PreRemoveEventArgs
      * @param class-string<T> $eventClass

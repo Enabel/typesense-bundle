@@ -14,6 +14,7 @@ use Enabel\Typesense\Schema\SchemaBuilderInterface;
 use Enabel\Typesense\Type\IntType;
 use PHPUnit\Framework\TestCase;
 use Typesense\Collections;
+use Typesense\Exceptions\ObjectAlreadyExists;
 
 final class ClientTest extends TestCase
 {
@@ -121,6 +122,23 @@ final class ClientTest extends TestCase
         $this->collections->expects(self::never())->method('create');
 
         $this->client->create('App\Entity\Product');
+    }
+
+    public function testItHandlesObjectAlreadyExistsRaceCondition(): void
+    {
+        $schema = ['name' => 'products', 'fields' => []];
+        $this->schemaBuilder->method('build')->willReturn($schema);
+
+        $tsCollection = $this->createMock(\Typesense\Collection::class);
+        $tsCollection->method('exists')->willReturn(false);
+        $this->collections->method('offsetGet')->with('products')->willReturn($tsCollection);
+
+        $this->collections->method('create')
+            ->willThrowException(new ObjectAlreadyExists('Already exists'));
+
+        $this->client->create('App\Entity\Product');
+
+        self::assertTrue(true);
     }
 
     public function testItDeletesTheCollectionOnDrop(): void
