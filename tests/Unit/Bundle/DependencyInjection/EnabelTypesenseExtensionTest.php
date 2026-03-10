@@ -9,6 +9,8 @@ use Enabel\Typesense\Bundle\Command\DropCommand;
 use Enabel\Typesense\Bundle\Command\ImportCommand;
 use Enabel\Typesense\Bundle\DependencyInjection\EnabelTypesenseExtension;
 use Enabel\Typesense\ClientInterface;
+use Enabel\Typesense\Doctrine\DoctrineDataProvider;
+use Enabel\Typesense\Doctrine\DoctrineDenormalizer;
 use Enabel\Typesense\Doctrine\IndexListener;
 use Enabel\Typesense\Document\DocumentNormalizerInterface;
 use Enabel\Typesense\Metadata\MetadataReaderInterface;
@@ -44,10 +46,12 @@ final class EnabelTypesenseExtensionTest extends TestCase
         self::assertTrue($container->getDefinition(ImportCommand::class)->hasTag('console.command'));
     }
 
-    public function testItRegistersIndexListenerWhenDoctrineIsPresent(): void
+    public function testItRegistersDoctrineServicesWhenDoctrineIsPresent(): void
     {
         $container = $this->buildContainer();
 
+        self::assertTrue($container->hasDefinition(DoctrineDenormalizer::class));
+        self::assertTrue($container->hasDefinition(DoctrineDataProvider::class));
         self::assertTrue($container->hasDefinition(IndexListener::class));
 
         $tags = $container->getDefinition(IndexListener::class)->getTags();

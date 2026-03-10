@@ -10,6 +10,8 @@ use Enabel\Typesense\Bundle\Command\ImportCommand;
 use Enabel\Typesense\Bundle\Command\SearchCommand;
 use Enabel\Typesense\Client;
 use Enabel\Typesense\ClientInterface;
+use Enabel\Typesense\Doctrine\DoctrineDataProvider;
+use Enabel\Typesense\Doctrine\DoctrineDenormalizer;
 use Enabel\Typesense\Doctrine\IndexListener;
 use Enabel\Typesense\Document\DocumentNormalizer;
 use Enabel\Typesense\Document\DocumentNormalizerInterface;
@@ -142,6 +144,13 @@ final class EnabelTypesenseExtension extends Extension
         if (!interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
             return;
         }
+
+        $container->register(DoctrineDenormalizer::class)
+            ->addArgument(new Reference('doctrine.orm.entity_manager'))
+            ->addArgument(new Reference(MetadataRegistryInterface::class));
+
+        $container->register(DoctrineDataProvider::class)
+            ->addArgument(new Reference('doctrine.orm.entity_manager'));
 
         $container->register(IndexListener::class)
             ->addArgument(new Reference(ClientInterface::class))
