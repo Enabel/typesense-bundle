@@ -1,0 +1,6 @@
+/vendor/
+/.phpunit.cache/
+/.phpstan.cache/
+/docker/typesense/data-v29/
+/docker/typesense/data-v30/
+composer.lock

@@ -1,0 +1,155 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Enabel\Typesense\Bundle\DependencyInjection;
+
+use Enabel\Typesense\Bundle\Command\CreateCommand;
+use Enabel\Typesense\Bundle\Command\DropCommand;
+use Enabel\Typesense\Bundle\Command\ImportCommand;
+use Enabel\Typesense\Bundle\Command\SearchCommand;
+use Enabel\Typesense\Client;
+use Enabel\Typesense\ClientInterface;
+use Enabel\Typesense\Doctrine\IndexListener;
+use Enabel\Typesense\Document\DocumentNormalizer;
+use Enabel\Typesense\Document\DocumentNormalizerInterface;
+use Enabel\Typesense\Metadata\CachedMetadataRegistry;
+use Enabel\Typesense\Metadata\MetadataReader;
+use Enabel\Typesense\Metadata\MetadataReaderInterface;
+use Enabel\Typesense\Metadata\MetadataRegistry;
+use Enabel\Typesense\Metadata\MetadataRegistryInterface;
+use Enabel\Typesense\Schema\SchemaBuilder;
+use Enabel\Typesense\Schema\SchemaBuilderInterface;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
+use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\HttpKernel\DependencyInjection\Extension;
+
+final class EnabelTypesenseExtension extends Extension
+{
+    public function load(array $configs, ContainerBuilder $container): void
+    {
+        $configuration = new Configuration();
+        $config = $this->processConfiguration($configuration, $configs);
+
+        $this->registerTypesenseClient($container, $config['client']);
+        $this->registerCoreServices($container);
+        $this->registerCollections($container, $config);
+        $this->registerCommands($container);
+        $this->registerIndexListener($container, $config);
+    }
+
+    /**
+     * @param array{url: string, api_key: string} $clientConfig
+     */
+    private function registerTypesenseClient(ContainerBuilder $container, array $clientConfig): void
+    {
+        $parsed = parse_url($clientConfig['url']);
+        assert(is_array($parsed));
+
+        $container->register('enabel_typesense.typesense_client', \Typesense\Client::class)
+            ->addArgument([
+                'api_key' => $clientConfig['api_key'],
+                'nodes' => [
+                    [
+                        'host' => $parsed['host'] ?? 'localhost',
+                        'port' => (string) ($parsed['port'] ?? 8108),
+                        'protocol' => $parsed['scheme'] ?? 'http',
+                    ],
+                ],
+            ]);
+    }
+
+    private function registerCoreServices(ContainerBuilder $container): void
+    {
+        $container->register(MetadataReaderInterface::class, MetadataReader::class);
+
+        $container->register(MetadataRegistry::class)
+            ->addArgument(new Reference(MetadataReaderInterface::class));
+
+        $container->register(MetadataRegistryInterface::class, CachedMetadataRegistry::class)
+            ->addArgument(new Reference(MetadataRegistry::class))
+            ->addArgument(new Reference('cache.app'));
+
+        $container->register(DocumentNormalizerInterface::class, DocumentNormalizer::class)
+            ->addArgument(new Reference(MetadataRegistryInterface::class));
+
+        $container->register(SchemaBuilderInterface::class, SchemaBuilder::class);
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function registerCollections(ContainerBuilder $container, array $config): void
+    {
+        $defaultDenormalizer = $config['default_denormalizer'];
+        $defaultDataProvider = $config['default_data_provider'];
+        $denormalizerMap = [];
+        $dataProviderMap = [];
+
+        foreach ($config['collections'] as $className => $collectionConfig) {
+            $denormalizerService = $collectionConfig['denormalizer'] ?? $defaultDenormalizer;
+            $dataProviderService = $collectionConfig['data_provider'] ?? $defaultDataProvider;
+
+            if ($denormalizerService !== null) {
+                $denormalizerMap[$className] = new Reference($denormalizerService);
+            }
+
+            if ($dataProviderService !== null) {
+                $dataProviderMap[$className] = new Reference($dataProviderService);
+            }
+        }
+
+        $container->register(ClientInterface::class, Client::class)
+            ->addArgument(new Reference('enabel_typesense.typesense_client'))
+            ->addArgument(new Reference(MetadataRegistryInterface::class))
+            ->addArgument(new Reference(DocumentNormalizerInterface::class))
+            ->addArgument(new Reference(SchemaBuilderInterface::class))
+            ->addArgument($denormalizerMap);
+
+        $container->setParameter('enabel_typesense.collection_classes', array_keys($config['collections']));
+        $container->setParameter('enabel_typesense.data_provider_map', $dataProviderMap);
+    }
+
+    private function registerCommands(ContainerBuilder $container): void
+    {
+        $container->register(CreateCommand::class)
+            ->addArgument(new Reference(ClientInterface::class))
+            ->addArgument('%enabel_typesense.collection_classes%')
+            ->addTag('console.command');
+
+        $container->register(DropCommand::class)
+            ->addArgument(new Reference(ClientInterface::class))
+            ->addArgument('%enabel_typesense.collection_classes%')
+            ->addTag('console.command');
+
+        $container->register(ImportCommand::class)
+            ->addArgument(new Reference(ClientInterface::class))
+            ->addArgument('%enabel_typesense.collection_classes%')
+            ->addTag('console.command');
+
+        $container->register(SearchCommand::class)
+            ->addArgument(new Reference(ClientInterface::class))
+            ->addArgument(new Reference(MetadataRegistryInterface::class))
+            ->addTag('console.command');
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function registerIndexListener(ContainerBuilder $container, array $config): void
+    {
+        if (!interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
+            return;
+        }
+
+        $container->register(IndexListener::class)
+            ->addArgument(new Reference(ClientInterface::class))
+            ->addArgument('%enabel_typesense.collection_classes%')
+            ->addArgument(new Reference('logger', ContainerBuilder::NULL_ON_INVALID_REFERENCE))
+            ->addArgument(new Reference(MetadataRegistryInterface::class))
+            ->addTag('doctrine.event_listener', ['event' => 'postPersist'])
+            ->addTag('doctrine.event_listener', ['event' => 'postUpdate'])
+            ->addTag('doctrine.event_listener', ['event' => 'preRemove']);
+    }
+}

@@ -1,0 +1,25 @@
+name: typesense
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/frankenphp/Dockerfile
+      args:
+        PHP_VERSION: 8.4
+    environment:
+      - SERVER_NAME=:80
+    volumes:
+      - .:/app
+
+  typesense-v29:
+    image: typesense/typesense:29.0
+    command: '--data-dir /data --api-key=123 --enable-cors'
+    volumes:
+      - ./docker/typesense/data-v29:/data
+
+  typesense-v30:
+    image: typesense/typesense:30.1
+    command: '--data-dir /data --api-key=123 --enable-cors'
+    volumes:
+      - ./docker/typesense/data-v30:/data
