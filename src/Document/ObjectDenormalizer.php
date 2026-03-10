@@ -32,9 +32,15 @@ final readonly class ObjectDenormalizer implements DenormalizerInterface
                 if (!array_key_exists($field->propertyName, $document)) {
                     if ($field->optional) {
                         $reflection->getProperty($field->propertyName)->setValue($object, null);
+
+                        continue;
                     }
 
-                    continue;
+                    throw new \RuntimeException(\sprintf(
+                        'Missing required field "%s" in Typesense document for class "%s".',
+                        $field->propertyName,
+                        $className,
+                    ));
                 }
 
                 $value = $field->type->denormalize($document[$field->propertyName]);

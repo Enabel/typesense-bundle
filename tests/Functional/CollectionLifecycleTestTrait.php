@@ -262,6 +262,206 @@ trait CollectionLifecycleTestTrait
         }
     }
 
+    public function testItFiltersWithEquals(): void
+    {
+        $this->createCollection(FunctionalProduct::class);
+        $collection = $this->client->collection(FunctionalProduct::class);
+
+        $collection->import([
+            $this->makeProduct(1, 'Alpha', 10.0, inStock: true, popularity: 10),
+            $this->makeProduct(2, 'Beta', 20.0, inStock: false, popularity: 20),
+            $this->makeProduct(3, 'Gamma', 30.0, inStock: true, popularity: 30),
+        ]);
+
+        $response = $collection->search(
+            Query::create()->queryBy('title')->filterBy(Filter::equals('inStock', true)),
+        );
+
+        self::assertSame(2, $response->found);
+        foreach ($response->documents as $doc) {
+            self::assertTrue($doc->inStock);
+        }
+    }
+
+    public function testItFiltersWithNotEquals(): void
+    {
+        $this->createCollection(FunctionalProduct::class);
+        $collection = $this->client->collection(FunctionalProduct::class);
+
+        $collection->import([
+            $this->makeProduct(1, 'Alpha', 10.0, status: StringStatus::Active, popularity: 10),
+            $this->makeProduct(2, 'Beta', 20.0, status: StringStatus::Inactive, popularity: 20),
+            $this->makeProduct(3, 'Gamma', 30.0, status: StringStatus::Active, popularity: 30),
+        ]);
+
+        $response = $collection->search(
+            Query::create()->queryBy('title')->filterBy(Filter::notEquals('status', 'active')),
+        );
+
+        self::assertSame(1, $response->found);
+        self::assertSame(StringStatus::Inactive, $response->documents[0]->status);
+    }
+
+    public function testItFiltersWithGreaterThan(): void
+    {
+        $this->createCollection(FunctionalProduct::class);
+        $collection = $this->client->collection(FunctionalProduct::class);
+
+        $collection->import([
+            $this->makeProduct(1, 'Cheap', 10.0, popularity: 10),
+            $this->makeProduct(2, 'Mid', 50.0, popularity: 50),
+            $this->makeProduct(3, 'Expensive', 100.0, popularity: 90),
+        ]);
+
+        $response = $collection->search(
+            Query::create()->queryBy('title')->filterBy(Filter::greaterThan('price', 50.0)),
+        );
+
+        self::assertSame(1, $response->found);
+        self::assertSame('Expensive', $response->documents[0]->title);
+    }
+
+    public function testItFiltersWithGreaterThanOrEqual(): void
+    {
+        $this->createCollection(FunctionalProduct::class);
+        $collection = $this->client->collection(FunctionalProduct::class);
+
+        $collection->import([
+            $this->makeProduct(1, 'Cheap', 10.0, popularity: 10),
+            $this->makeProduct(2, 'Mid', 50.0, popularity: 50),
+            $this->makeProduct(3, 'Expensive', 100.0, popularity: 90),
+        ]);
+
+        $response = $collection->search(
+            Query::create()->queryBy('title')->filterBy(Filter::greaterThanOrEqual('price', 50.0)),
+        );
+
+        self::assertSame(2, $response->found);
+    }
+
+    public function testItFiltersWithLessThan(): void
+    {
+        $this->createCollection(FunctionalProduct::class);
+        $collection = $this->client->collection(FunctionalProduct::class);
+
+        $collection->import([
+            $this->makeProduct(1, 'Cheap', 10.0, popularity: 10),
+            $this->makeProduct(2, 'Mid', 50.0, popularity: 50),
+            $this->makeProduct(3, 'Expensive', 100.0, popularity: 90),
+        ]);
+
+        $response = $collection->search(
+            Query::create()->queryBy('title')->filterBy(Filter::lessThan('price', 50.0)),
+        );
+
+        self::assertSame(1, $response->found);
+        self::assertSame('Cheap', $response->documents[0]->title);
+    }
+
+    public function testItFiltersWithLessThanOrEqual(): void
+    {
+        $this->createCollection(FunctionalProduct::class);
+        $collection = $this->client->collection(FunctionalProduct::class);
+
+        $collection->import([
+            $this->makeProduct(1, 'Cheap', 10.0, popularity: 10),
+            $this->makeProduct(2, 'Mid', 50.0, popularity: 50),
+            $this->makeProduct(3, 'Expensive', 100.0, popularity: 90),
+        ]);
+
+        $response = $collection->search(
+            Query::create()->queryBy('title')->filterBy(Filter::lessThanOrEqual('price', 50.0)),
+        );
+
+        self::assertSame(2, $response->found);
+    }
+
+    public function testItFiltersWithIn(): void
+    {
+        $this->createCollection(FunctionalProduct::class);
+        $collection = $this->client->collection(FunctionalProduct::class);
+
+        $collection->import([
+            $this->makeProduct(1, 'Alpha', 10.0, status: StringStatus::Active, popularity: 10),
+            $this->makeProduct(2, 'Beta', 20.0, status: StringStatus::Inactive, popularity: 20),
+            $this->makeProduct(3, 'Gamma', 30.0, status: StringStatus::Active, popularity: 30),
+        ]);
+
+        $response = $collection->search(
+            Query::create()->queryBy('title')->filterBy(Filter::in('status', ['active', 'inactive'])),
+        );
+
+        self::assertSame(3, $response->found);
+    }
+
+    public function testItFiltersWithNotIn(): void
+    {
+        $this->createCollection(FunctionalProduct::class);
+        $collection = $this->client->collection(FunctionalProduct::class);
+
+        $collection->import([
+            $this->makeProduct(1, 'Alpha', 10.0, status: StringStatus::Active, popularity: 10),
+            $this->makeProduct(2, 'Beta', 20.0, status: StringStatus::Inactive, popularity: 20),
+            $this->makeProduct(3, 'Gamma', 30.0, status: StringStatus::Active, popularity: 30),
+        ]);
+
+        $response = $collection->search(
+            Query::create()->queryBy('title')->filterBy(Filter::notIn('status', ['inactive'])),
+        );
+
+        self::assertSame(2, $response->found);
+        foreach ($response->documents as $doc) {
+            self::assertSame(StringStatus::Active, $doc->status);
+        }
+    }
+
+    public function testItFiltersWithCombinedAllFilters(): void
+    {
+        $this->createCollection(FunctionalProduct::class);
+        $collection = $this->client->collection(FunctionalProduct::class);
+
+        $collection->import([
+            $this->makeProduct(1, 'Cheap Active', 10.0, inStock: true, status: StringStatus::Active, popularity: 10),
+            $this->makeProduct(2, 'Expensive Active', 100.0, inStock: true, status: StringStatus::Active, popularity: 20),
+            $this->makeProduct(3, 'Cheap Inactive', 15.0, inStock: false, status: StringStatus::Inactive, popularity: 30),
+        ]);
+
+        $response = $collection->search(
+            Query::create()->queryBy('title')->filterBy(
+                Filter::all(
+                    Filter::lessThan('price', 50.0),
+                    Filter::equals('inStock', true),
+                ),
+            ),
+        );
+
+        self::assertSame(1, $response->found);
+        self::assertSame('Cheap Active', $response->documents[0]->title);
+    }
+
+    public function testItFiltersWithCombinedAnyFilters(): void
+    {
+        $this->createCollection(FunctionalProduct::class);
+        $collection = $this->client->collection(FunctionalProduct::class);
+
+        $collection->import([
+            $this->makeProduct(1, 'Cheap', 10.0, popularity: 10),
+            $this->makeProduct(2, 'Mid', 50.0, popularity: 50),
+            $this->makeProduct(3, 'Expensive', 200.0, popularity: 90),
+        ]);
+
+        $response = $collection->search(
+            Query::create()->queryBy('title')->filterBy(
+                Filter::any(
+                    Filter::lessThan('price', 20.0),
+                    Filter::greaterThan('price', 100.0),
+                ),
+            ),
+        );
+
+        self::assertSame(2, $response->found);
+    }
+
     public function testItReturnsRawSearchResults(): void
     {
         $this->createCollection(FunctionalProduct::class);

@@ -149,4 +149,81 @@ final class ObjectDenormalizerTest extends TestCase
 
         self::assertSame([], $result);
     }
+
+    public function testItThrowsOnMissingRequiredField(): void
+    {
+        $documents = [
+            [
+                'id' => '1',
+                'title' => 'Test',
+                // 'price' is missing and non-optional
+                'inStock' => true,
+                'tags' => [],
+                'popularity' => 0,
+                'description' => 'Desc',
+                'createdAt' => time(),
+                'status' => 'active',
+            ],
+        ];
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Missing required field "price"');
+
+        $this->denormalizer->denormalize($documents, ValidProduct::class);
+    }
+
+    public function testNormalizeAndDenormalizeRoundTrip(): void
+    {
+        $registry = $this->createMock(MetadataRegistryInterface::class);
+        $metadata = new DocumentMetadata(
+            className: ValidProduct::class,
+            collection: 'products',
+            defaultSortingField: 'popularity',
+            idPropertyName: 'id',
+            idType: new IntType(),
+            fields: [
+                new FieldMetadata('title', new StringType(), facet: true, sort: false, index: true, store: true, optional: false, infix: false),
+                new FieldMetadata('price', new FloatType(), facet: false, sort: true, index: true, store: true, optional: false, infix: false),
+                new FieldMetadata('inStock', new BoolType(), facet: false, sort: false, index: true, store: true, optional: false, infix: false),
+                new FieldMetadata('tags', new StringType(array: true), facet: true, sort: false, index: true, store: true, optional: false, infix: false),
+                new FieldMetadata('popularity', new IntType(), facet: false, sort: true, index: false, store: true, optional: false, infix: false),
+                new FieldMetadata('description', new StringType(), facet: false, sort: false, index: true, store: true, optional: false, infix: true),
+                new FieldMetadata('subtitle', new StringType(), facet: false, sort: false, index: true, store: true, optional: true, infix: false),
+                new FieldMetadata('createdAt', new DateTimeType(), facet: false, sort: false, index: true, store: true, optional: false, infix: false),
+                new FieldMetadata('status', new BackedEnumType(StringStatus::class), facet: false, sort: false, index: true, store: true, optional: false, infix: false),
+            ],
+        );
+        $registry->method('get')->willReturn($metadata);
+
+        $normalizer = new \Enabel\Typesense\Document\DocumentNormalizer($registry);
+        $denormalizer = new ObjectDenormalizer($registry);
+
+        $product = new ValidProduct();
+        $product->id = 42;
+        $product->title = 'Widget';
+        $product->price = 9.99;
+        $product->inStock = true;
+        $product->tags = ['gadget', 'sale'];
+        $product->popularity = 100;
+        $product->description = 'A great widget';
+        $product->subtitle = null;
+        $product->createdAt = new \DateTimeImmutable('2025-01-15 12:00:00');
+        $product->status = StringStatus::Active;
+
+        $documents = $normalizer->normalize([$product]);
+        $objects = $denormalizer->denormalize($documents, ValidProduct::class);
+
+        self::assertCount(1, $objects);
+        $result = $objects[0];
+        self::assertSame($product->id, $result->id);
+        self::assertSame($product->title, $result->title);
+        self::assertSame($product->price, $result->price);
+        self::assertSame($product->inStock, $result->inStock);
+        self::assertSame($product->tags, $result->tags);
+        self::assertSame($product->popularity, $result->popularity);
+        self::assertSame($product->description, $result->description);
+        self::assertNull($result->subtitle);
+        self::assertSame($product->createdAt->getTimestamp(), $result->createdAt->getTimestamp());
+        self::assertSame($product->status, $result->status);
+    }
 }
