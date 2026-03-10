@@ -6,7 +6,7 @@
     "keywords": ["typesense", "search"],
     "require": {
         "php": ">=8.4",
-        "typesense/typesense-php": "^5.0",
+        "typesense/typesense-php": "^4.9 || ^5.2",
         "symfony/cache-contracts": "^3.0"
     },
     "require-dev": {
