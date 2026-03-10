@@ -23,7 +23,6 @@ use Enabel\Typesense\Metadata\MetadataRegistryInterface;
 use Enabel\Typesense\Schema\SchemaBuilder;
 use Enabel\Typesense\Schema\SchemaBuilderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\DependencyInjection\Extension;
 
@@ -36,8 +35,8 @@ final class EnabelTypesenseExtension extends Extension
 
         $this->registerTypesenseClient($container, $config['client']);
         $this->registerCoreServices($container);
-        $this->registerCollections($container, $config);
-        $this->registerCommands($container);
+        $dataProviderMap = $this->registerCollections($container, $config);
+        $this->registerCommands($container, $dataProviderMap);
         $this->registerIndexListener($container, $config);
     }
 
@@ -81,8 +80,9 @@ final class EnabelTypesenseExtension extends Extension
 
     /**
      * @param array<string, mixed> $config
+     * @return array<class-string, Reference>
      */
-    private function registerCollections(ContainerBuilder $container, array $config): void
+    private function registerCollections(ContainerBuilder $container, array $config): array
     {
         $defaultDenormalizer = $config['default_denormalizer'];
         $defaultDataProvider = $config['default_data_provider'];
@@ -110,10 +110,14 @@ final class EnabelTypesenseExtension extends Extension
             ->addArgument($denormalizerMap);
 
         $container->setParameter('enabel_typesense.collection_classes', array_keys($config['collections']));
-        $container->setParameter('enabel_typesense.data_provider_map', $dataProviderMap);
+
+        return $dataProviderMap;
     }
 
-    private function registerCommands(ContainerBuilder $container): void
+    /**
+     * @param array<class-string, Reference> $dataProviderMap
+     */
+    private function registerCommands(ContainerBuilder $container, array $dataProviderMap): void
     {
         $container->register(CreateCommand::class)
             ->addArgument(new Reference(ClientInterface::class))
@@ -128,6 +132,7 @@ final class EnabelTypesenseExtension extends Extension
         $container->register(ImportCommand::class)
             ->addArgument(new Reference(ClientInterface::class))
             ->addArgument('%enabel_typesense.collection_classes%')
+            ->addArgument($dataProviderMap)
             ->addTag('console.command');
 
         $container->register(SearchCommand::class)
