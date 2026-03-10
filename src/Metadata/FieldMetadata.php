@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Enabel\Typesense\Metadata;
 
-use Enabel\Typesense\Mapping\Infix;
 use Enabel\Typesense\Type\TypeInterface;
 
 final readonly class FieldMetadata
@@ -17,6 +16,6 @@ final readonly class FieldMetadata
         public bool $index,
         public bool $store,
         public bool $optional,
-        public Infix $infix,
+        public bool $infix,
     ) {}
 }

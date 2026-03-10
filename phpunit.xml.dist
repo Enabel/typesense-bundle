@@ -15,7 +15,7 @@
     </testsuites>
 
     <php>
-        <env name="TYPESENSE_V29_URL" value="http://typesense:8108"/>
+        <env name="TYPESENSE_V29_URL" value="http://typesense-v29:8108"/>
         <env name="TYPESENSE_V30_URL" value="http://typesense-v30:8108"/>
         <env name="TYPESENSE_API_KEY" value="123"/>
     </php>

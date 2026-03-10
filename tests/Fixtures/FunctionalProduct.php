@@ -7,7 +7,6 @@ namespace Enabel\Typesense\Tests\Fixtures;
 use Enabel\Typesense\Mapping\Document;
 use Enabel\Typesense\Mapping\Field;
 use Enabel\Typesense\Mapping\Id;
-use Enabel\Typesense\Mapping\Infix;
 use Enabel\Typesense\Type\StringType;
 
 #[Document(collection: 'functional_products', defaultSortingField: 'popularity')]
@@ -31,7 +30,7 @@ class FunctionalProduct
     #[Field(sort: true)]
     public int $popularity;
 
-    #[Field(infix: Infix::Always)]
+    #[Field(infix: true)]
     public string $description;
 
     #[Field]

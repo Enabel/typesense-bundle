@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Enabel\Typesense\Tests\Unit\Document;
 
 use Enabel\Typesense\Document\ObjectDenormalizer;
-use Enabel\Typesense\Mapping\Infix;
 use Enabel\Typesense\Metadata\DocumentMetadata;
 use Enabel\Typesense\Metadata\FieldMetadata;
 use Enabel\Typesense\Metadata\MetadataRegistryInterface;
@@ -32,15 +31,15 @@ final class ObjectDenormalizerTest extends TestCase
             idPropertyName: 'id',
             idType: new IntType(),
             fields: [
-                new FieldMetadata('title', new StringType(), facet: true, sort: false, index: true, store: true, optional: false, infix: Infix::Off),
-                new FieldMetadata('price', new FloatType(), facet: false, sort: true, index: true, store: true, optional: false, infix: Infix::Off),
-                new FieldMetadata('inStock', new BoolType(), facet: false, sort: false, index: true, store: true, optional: false, infix: Infix::Off),
-                new FieldMetadata('tags', new StringType(array: true), facet: true, sort: false, index: true, store: true, optional: false, infix: Infix::Off),
-                new FieldMetadata('popularity', new IntType(), facet: false, sort: true, index: false, store: true, optional: false, infix: Infix::Off),
-                new FieldMetadata('description', new StringType(), facet: false, sort: false, index: true, store: true, optional: false, infix: Infix::Always),
-                new FieldMetadata('subtitle', new StringType(), facet: false, sort: false, index: true, store: true, optional: true, infix: Infix::Off),
-                new FieldMetadata('createdAt', new DateTimeType(), facet: false, sort: false, index: true, store: true, optional: false, infix: Infix::Off),
-                new FieldMetadata('status', new BackedEnumType(StringStatus::class), facet: false, sort: false, index: true, store: true, optional: false, infix: Infix::Off),
+                new FieldMetadata('title', new StringType(), facet: true, sort: false, index: true, store: true, optional: false, infix: false),
+                new FieldMetadata('price', new FloatType(), facet: false, sort: true, index: true, store: true, optional: false, infix: false),
+                new FieldMetadata('inStock', new BoolType(), facet: false, sort: false, index: true, store: true, optional: false, infix: false),
+                new FieldMetadata('tags', new StringType(array: true), facet: true, sort: false, index: true, store: true, optional: false, infix: false),
+                new FieldMetadata('popularity', new IntType(), facet: false, sort: true, index: false, store: true, optional: false, infix: false),
+                new FieldMetadata('description', new StringType(), facet: false, sort: false, index: true, store: true, optional: false, infix: true),
+                new FieldMetadata('subtitle', new StringType(), facet: false, sort: false, index: true, store: true, optional: true, infix: false),
+                new FieldMetadata('createdAt', new DateTimeType(), facet: false, sort: false, index: true, store: true, optional: false, infix: false),
+                new FieldMetadata('status', new BackedEnumType(StringStatus::class), facet: false, sort: false, index: true, store: true, optional: false, infix: false),
             ],
         );
 

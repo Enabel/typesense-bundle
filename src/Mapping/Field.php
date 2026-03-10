@@ -15,7 +15,7 @@ final readonly class Field
         public bool $sort = false,
         public bool $index = true,
         public bool $store = true,
-        public Infix $infix = Infix::Off,
+        public bool $infix = false,
         public bool $optional = false,
     ) {}
 }

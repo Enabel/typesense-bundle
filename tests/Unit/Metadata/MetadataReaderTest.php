@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Enabel\Typesense\Tests\Unit\Metadata;
 
 use Enabel\Typesense\Exception\MappingException;
-use Enabel\Typesense\Mapping\Infix;
 use Enabel\Typesense\Metadata\DocumentMetadata;
 use Enabel\Typesense\Metadata\MetadataReader;
 use Enabel\Typesense\Tests\Fixtures\ArrayWithoutTypeClass;
@@ -81,12 +80,12 @@ final class MetadataReaderTest extends TestCase
         self::assertFalse($fields['title']->sort);
         self::assertTrue($fields['title']->index);
         self::assertTrue($fields['title']->store);
-        self::assertSame(Infix::Off, $fields['title']->infix);
+        self::assertFalse($fields['title']->infix);
 
         self::assertTrue($fields['price']->sort);
         self::assertFalse($fields['popularity']->index);
         self::assertTrue($fields['tags']->facet);
-        self::assertSame(Infix::Always, $fields['description']->infix);
+        self::assertTrue($fields['description']->infix);
     }
 
     public function testItSetsOptionalTrueForNullableProperties(): void

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Enabel\Typesense\Schema;
 
-use Enabel\Typesense\Mapping\Infix;
 use Enabel\Typesense\Metadata\DocumentMetadata;
 use Enabel\Typesense\Metadata\FieldMetadata;
 
@@ -57,7 +56,7 @@ final readonly class SchemaBuilder implements SchemaBuilderInterface
             $schema['optional'] = true;
         }
 
-        if ($field->infix !== Infix::Off) {
+        if ($field->infix) {
             $schema['infix'] = true;
         }
 

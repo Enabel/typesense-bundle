@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Enabel\Typesense\Tests\Unit\Mapping;
 
 use Enabel\Typesense\Mapping\Field;
-use Enabel\Typesense\Mapping\Infix;
 use Enabel\Typesense\Type\StringType;
 use PHPUnit\Framework\TestCase;
 
@@ -19,7 +18,7 @@ final class FieldTest extends TestCase
         self::assertFalse($attr->sort);
         self::assertTrue($attr->index);
         self::assertTrue($attr->store);
-        self::assertSame(Infix::Off, $attr->infix);
+        self::assertFalse($attr->infix);
         self::assertFalse($attr->optional);
     }
 
@@ -32,7 +31,7 @@ final class FieldTest extends TestCase
             sort: true,
             index: false,
             store: false,
-            infix: Infix::Always,
+            infix: true,
             optional: true,
         );
         self::assertSame($type, $attr->type);
@@ -40,7 +39,7 @@ final class FieldTest extends TestCase
         self::assertTrue($attr->sort);
         self::assertFalse($attr->index);
         self::assertFalse($attr->store);
-        self::assertSame(Infix::Always, $attr->infix);
+        self::assertTrue($attr->infix);
         self::assertTrue($attr->optional);
     }
 

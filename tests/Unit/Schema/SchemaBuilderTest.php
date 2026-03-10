@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Enabel\Typesense\Tests\Unit\Schema;
 
-use Enabel\Typesense\Mapping\Infix;
 use Enabel\Typesense\Metadata\DocumentMetadata;
 use Enabel\Typesense\Metadata\FieldMetadata;
 use Enabel\Typesense\Schema\SchemaBuilder;
@@ -41,7 +40,7 @@ final class SchemaBuilderTest extends TestCase
                     index: true,
                     store: true,
                     optional: false,
-                    infix: Infix::Off,
+                    infix: false,
                 ),
             ],
         );
@@ -74,7 +73,7 @@ final class SchemaBuilderTest extends TestCase
                     index: true,
                     store: true,
                     optional: false,
-                    infix: Infix::Off,
+                    infix: false,
                 ),
             ],
         );
@@ -101,7 +100,7 @@ final class SchemaBuilderTest extends TestCase
                     index: true,
                     store: true,
                     optional: false,
-                    infix: Infix::Always,
+                    infix: true,
                 ),
                 new FieldMetadata(
                     propertyName: 'internalNote',
@@ -111,7 +110,7 @@ final class SchemaBuilderTest extends TestCase
                     index: false,
                     store: false,
                     optional: true,
-                    infix: Infix::Off,
+                    infix: false,
                 ),
             ],
         );
@@ -152,7 +151,7 @@ final class SchemaBuilderTest extends TestCase
                     index: true,
                     store: true,
                     optional: false,
-                    infix: Infix::Off,
+                    infix: false,
                 ),
             ],
         );
@@ -183,7 +182,7 @@ final class SchemaBuilderTest extends TestCase
                     index: true,
                     store: true,
                     optional: false,
-                    infix: Infix::Off,
+                    infix: false,
                 ),
                 new FieldMetadata(
                     propertyName: 'count',
@@ -193,7 +192,7 @@ final class SchemaBuilderTest extends TestCase
                     index: true,
                     store: true,
                     optional: false,
-                    infix: Infix::Off,
+                    infix: false,
                 ),
                 new FieldMetadata(
                     propertyName: 'smallCount',
@@ -203,7 +202,7 @@ final class SchemaBuilderTest extends TestCase
                     index: true,
                     store: true,
                     optional: false,
-                    infix: Infix::Off,
+                    infix: false,
                 ),
                 new FieldMetadata(
                     propertyName: 'price',
@@ -213,7 +212,7 @@ final class SchemaBuilderTest extends TestCase
                     index: true,
                     store: true,
                     optional: false,
-                    infix: Infix::Off,
+                    infix: false,
                 ),
                 new FieldMetadata(
                     propertyName: 'active',
@@ -223,7 +222,7 @@ final class SchemaBuilderTest extends TestCase
                     index: true,
                     store: true,
                     optional: false,
-                    infix: Infix::Off,
+                    infix: false,
                 ),
                 new FieldMetadata(
                     propertyName: 'createdAt',
@@ -233,7 +232,7 @@ final class SchemaBuilderTest extends TestCase
                     index: true,
                     store: true,
                     optional: false,
-                    infix: Infix::Off,
+                    infix: false,
                 ),
             ],
         );
@@ -264,7 +263,7 @@ final class SchemaBuilderTest extends TestCase
         self::assertSame([], $schema['fields']);
     }
 
-    public function testItSetsInfixTrueForFallbackMode(): void
+    public function testItSetsInfixTrueWhenEnabled(): void
     {
         $metadata = new DocumentMetadata(
             className: 'App\Entity\Product',
@@ -281,7 +280,7 @@ final class SchemaBuilderTest extends TestCase
                     index: true,
                     store: true,
                     optional: false,
-                    infix: Infix::Fallback,
+                    infix: true,
                 ),
             ],
         );

@@ -10,7 +10,7 @@ use Enabel\Typesense\Search\Sort;
 use Enabel\Typesense\Tests\Fixtures\StringStatus;
 use Enabel\Typesense\Tests\Fixtures\FunctionalProduct;
 
-abstract class CollectionLifecycleTest extends TypesenseTestCase
+trait CollectionLifecycleTestTrait
 {
     protected function getDocumentClasses(): array
     {
@@ -245,7 +245,7 @@ abstract class CollectionLifecycleTest extends TypesenseTestCase
             $this->makeProduct(3, 'C Inactive', 30.0, status: StringStatus::Inactive, popularity: 30),
         ]);
 
-        $response = $collection->searchGrouped(
+        $response = $this->client->collection(FunctionalProduct::class)->searchGrouped(
             Query::create()->queryBy('title'),
             groupBy: 'status',
             groupLimit: 2,
