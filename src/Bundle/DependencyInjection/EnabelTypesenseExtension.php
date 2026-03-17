@@ -38,7 +38,7 @@ final class EnabelTypesenseExtension extends Extension
         $this->registerCoreServices($container);
         $dataProviderMap = $this->registerCollections($container, $config);
         $this->registerCommands($container, $dataProviderMap);
-        $this->registerIndexListener($container, $config);
+        $this->registerIndexListener($container);
     }
 
     /**
@@ -75,8 +75,12 @@ final class EnabelTypesenseExtension extends Extension
      */
     private function registerCollections(ContainerBuilder $container, array $config): array
     {
-        $defaultDenormalizer = $config['default_denormalizer'];
-        $defaultDataProvider = $config['default_data_provider'];
+        $doctrineAvailable = interface_exists(\Doctrine\ORM\EntityManagerInterface::class);
+
+        $defaultDenormalizer = $config['default_denormalizer']
+            ?? ($doctrineAvailable ? DoctrineDenormalizer::class : null);
+        $defaultDataProvider = $config['default_data_provider']
+            ?? ($doctrineAvailable ? DoctrineDataProvider::class : null);
         $denormalizerMap = [];
         $dataProviderMap = [];
 
@@ -132,10 +136,7 @@ final class EnabelTypesenseExtension extends Extension
             ->addTag('console.command');
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
-    private function registerIndexListener(ContainerBuilder $container, array $config): void
+    private function registerIndexListener(ContainerBuilder $container): void
     {
         if (!interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
             return;

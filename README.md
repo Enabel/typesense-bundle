@@ -104,30 +104,38 @@ return [
 # config/packages/enabel_typesense.yaml
 enabel_typesense:
     client:
-        url: '%env(TYPESENSE_URL)%'           # e.g. http://localhost:8108
+        url: '%env(TYPESENSE_URL)%'
         api_key: '%env(TYPESENSE_API_KEY)%'
 
-    default_denormalizer: ~     # optional: service ID for default denormalizer
-    default_data_provider: ~   # optional: service ID for default data provider
-
     collections:
-        App\Entity\Product: ~                   # uses defaults
-        App\Entity\Article:
-            denormalizer: app.article_denormalizer   # override per collection
-            data_provider: app.article_provider      # override per collection
+        App\Entity\Product: ~
+        App\Entity\Article: ~
 ```
 
-### Registered Services
+**When `doctrine/orm` is installed**, the bundle automatically:
+- Uses `DoctrineDenormalizer` as the default denormalizer (search results are fully hydrated Doctrine entities)
+- Uses `DoctrineDataProvider` as the default data provider (for the `import` command)
+- Registers `IndexListener` to sync entities on persist, update, and remove
 
-The bundle automatically registers:
+No additional configuration is required for the standard Doctrine workflow.
 
-| Service | Description |
-|---------|-------------|
-| `Enabel\Typesense\ClientInterface` | Main client |
-| `Enabel\Typesense\Metadata\MetadataRegistryInterface` | Cached metadata registry |
-| `Enabel\Typesense\Document\DocumentNormalizerInterface` | Document normalizer |
-| `Enabel\Typesense\Schema\SchemaBuilderInterface` | Schema builder |
-| `Enabel\Typesense\Doctrine\IndexListener` | Auto-registered if Doctrine is present |
+To override the defaults globally or per collection:
+
+```yaml
+enabel_typesense:
+    client:
+        url: '%env(TYPESENSE_URL)%'
+        api_key: '%env(TYPESENSE_API_KEY)%'
+
+    default_denormalizer: app.my_denormalizer     # override global default
+    default_data_provider: app.my_data_provider   # override global default
+
+    collections:
+        App\Entity\Product: ~
+        App\Entity\Article:
+            denormalizer: app.article_denormalizer  # override per collection
+            data_provider: app.article_provider
+```
 
 ### Console Commands
 
@@ -182,24 +190,21 @@ class ProductSearchService
 }
 ```
 
-### Doctrine Integration
+### Registered Services
 
-When Doctrine ORM is available, the bundle automatically registers an `IndexListener` that syncs entities to Typesense on persist, update, and remove. The listener treats the database as the source of truth — if a Typesense sync fails, it logs a warning rather than throwing an exception.
-
-To return fully hydrated Doctrine entities from search results, configure a `DoctrineDenormalizer` as your denormalizer:
-
-```yaml
-enabel_typesense:
-    default_denormalizer: Enabel\Typesense\Doctrine\DoctrineDenormalizer
-    default_data_provider: Enabel\Typesense\Doctrine\DoctrineDataProvider
-
-    collections:
-        App\Entity\Product: ~
-```
+| Service | Description |
+|---------|-------------|
+| `Enabel\Typesense\ClientInterface` | Main client |
+| `Enabel\Typesense\Metadata\MetadataRegistryInterface` | Cached metadata registry |
+| `Enabel\Typesense\Document\DocumentNormalizerInterface` | Document normalizer |
+| `Enabel\Typesense\Schema\SchemaBuilderInterface` | Schema builder |
+| `Enabel\Typesense\Doctrine\DoctrineDenormalizer` | Auto-registered if Doctrine is present |
+| `Enabel\Typesense\Doctrine\DoctrineDataProvider` | Auto-registered if Doctrine is present |
+| `Enabel\Typesense\Doctrine\IndexListener` | Auto-registered if Doctrine is present |
 
 ---
 
-## Standalone Usage (without Symfony)
+## Standalone Usage
 
 ### Set Up the Client
 
@@ -216,7 +221,6 @@ $typesense = new \Typesense\Client([
 
 $registry   = new MetadataRegistry(new MetadataReader());
 $normalizer = new DocumentNormalizer($registry);
-$denormalizer = new ObjectDenormalizer($registry);
 
 $client = new Client(
     typesenseClient: $typesense,
@@ -224,7 +228,7 @@ $client = new Client(
     normalizer: $normalizer,
     schemaBuilder: new SchemaBuilder(),
     denormalizers: [
-        Product::class => $denormalizer,
+        Product::class => new ObjectDenormalizer($registry),
     ],
 );
 ```
@@ -239,18 +243,12 @@ $collection->upsert($product);
 $collection->import([$product1, $product2, $product3]);
 ```
 
-### Doctrine Integration (Manual Wiring)
+### With Doctrine ORM
 
-For projects using Doctrine ORM without Symfony, wire the integrations manually:
-
-#### DoctrineDenormalizer
-
-Fetches real entities from the database instead of creating plain objects:
+Use `DoctrineDenormalizer` to return fully hydrated entities from search results, and `DoctrineDataProvider` for memory-efficient bulk import:
 
 ```php
-use Enabel\Typesense\Doctrine\DoctrineDenormalizer;
-
-$denormalizer = new DoctrineDenormalizer($entityManager, $registry);
+use Enabel\Typesense\Doctrine\{DoctrineDenormalizer, DoctrineDataProvider, IndexListener};
 
 $client = new Client(
     typesenseClient: $typesense,
@@ -258,44 +256,22 @@ $client = new Client(
     normalizer: $normalizer,
     schemaBuilder: new SchemaBuilder(),
     denormalizers: [
-        Product::class => $denormalizer,
+        Product::class => new DoctrineDenormalizer($entityManager, $registry),
     ],
 );
 
-// search() now returns fully hydrated Doctrine entities
-$response = $client->collection(Product::class)->search($query);
-$entity = $response->documents[0]; // Doctrine-managed Product entity
-```
-
-#### DoctrineDataProvider
-
-Streams entities for bulk import with low memory usage:
-
-```php
-use Enabel\Typesense\Doctrine\DoctrineDataProvider;
-
+// Bulk import via data provider
 $provider = new DoctrineDataProvider($entityManager);
+$collection->import($provider->provide(Product::class));
 
-foreach ($provider->provide(Product::class) as $product) {
-    // Each entity is detached after yielding
-}
-```
-
-#### IndexListener
-
-Automatically syncs Doctrine entities to Typesense on persist, update, and remove:
-
-```php
-use Enabel\Typesense\Doctrine\IndexListener;
-
+// Auto-sync on persist/update/remove
 $listener = new IndexListener(
     client: $client,
     classNames: [Product::class],
-    logger: $logger,           // optional, logs sync failures as warnings
-    registry: $registry,       // optional, used for ID extraction on preRemove
+    logger: $logger,      // optional
+    registry: $registry,  // optional, used for ID extraction on preRemove
 );
 
-// Register as Doctrine event listener
 $entityManager->getEventManager()->addEventListener(
     [Events::postPersist, Events::postUpdate, Events::preRemove],
     $listener,
@@ -343,16 +319,13 @@ Applied to properties or public methods that should be indexed in Typesense.
 | `store` | `bool` | `true` | Persist on disk |
 | `infix` | `bool` | `false` | Enable infix (substring) searching |
 | `optional` | `bool` | `false` | Allow absent values (auto-set for nullable properties) |
-| `denormalize` | `?bool` | `null` | Write back when denormalizing (defaults to `true` for regular properties, `false` for methods and virtual properties) |
+| `denormalize` | `?bool` | `null` | Write back when denormalizing (defaults to `true` for properties, `false` for methods) |
 
 ### Computed Fields (Method Mapping)
 
-`#[Field]` can be placed on a public method to index a computed value. The method's return value is called during normalization and stored in Typesense. By default, computed fields are not written back when denormalizing search results (i.e. `denormalize: false`).
+`#[Field]` can be placed on a public method to index a computed value. The method's return value is called during normalization and stored in Typesense. By default, computed fields are not written back when denormalizing search results (`denormalize: false`).
 
 ```php
-use Enabel\Typesense\Mapping as Typesense;
-use Enabel\Typesense\Type\StringType;
-
 #[Typesense\Document(collection: 'products')]
 class Product
 {
@@ -361,9 +334,6 @@ class Product
 
     public string $firstName;
     public string $lastName;
-
-    #[Typesense\Field(type: new StringType(array: true), facet: true)]
-    public array $tags;
 
     // Computed field — method is called during indexing
     #[Typesense\Field]
@@ -374,24 +344,9 @@ class Product
 }
 ```
 
-The Typesense field name defaults to the method name (`fullName` above). Use `name:` to override it:
+The field name defaults to the method name. Use `name:` to override it. To write the computed value back on denormalization, set `denormalize: true`.
 
-```php
-#[Typesense\Field(name: 'full_name')]
-public function fullName(): string { /* ... */ }
-```
-
-To write the computed value back when denormalizing (e.g. populating a public property from search results), set `denormalize: true`:
-
-```php
-public string $fullName = '';
-
-#[Typesense\Field(denormalize: true)]
-public function computeFullName(): string
-{
-    return "{$this->firstName} {$this->lastName}";
-}
-```
+---
 
 ## Type System
 
@@ -412,15 +367,15 @@ Types are inferred from PHP property types when possible. Use explicit types for
 ```php
 use Enabel\Typesense\Type\{StringType, IntType, FloatType, BoolType, DateTimeType, BackedEnumType};
 
-new StringType()                          // string
-new StringType(array: true)               // string[]
-new IntType()                             // int64
-new IntType(int32: true)                  // int32
-new IntType(array: true)                  // int64[]
-new FloatType()                           // float
-new BoolType()                            // bool
-new DateTimeType()                        // int64 (Unix timestamp)
-new BackedEnumType(Status::class)         // string or int32
+new StringType()                               // string
+new StringType(array: true)                    // string[]
+new IntType()                                  // int64
+new IntType(int32: true)                       // int32
+new IntType(array: true)                       // int64[]
+new FloatType()                                // float
+new BoolType()                                 // bool
+new DateTimeType()                             // int64 (Unix timestamp)
+new BackedEnumType(Status::class)              // string or int32
 new BackedEnumType(Status::class, array: true) // string[] or int32[]
 ```
 
@@ -434,6 +389,8 @@ use Enabel\Typesense\Type\{DateTimeType, BackedEnumType};
 Filter::greaterThan('createdAt', DateTimeType::cast(new \DateTimeImmutable('-7 days')));
 Filter::equals('status', BackedEnumType::cast(Status::Active));
 ```
+
+---
 
 ## Search API
 
@@ -532,6 +489,8 @@ $raw = $collection->searchRaw([
     'per_page' => 10,
 ]);
 ```
+
+---
 
 ## Collection Operations
 
