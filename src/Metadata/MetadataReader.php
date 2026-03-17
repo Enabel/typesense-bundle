@@ -18,92 +18,160 @@ use Enabel\Typesense\Type\TypeInterface;
 
 final readonly class MetadataReader implements MetadataReaderInterface
 {
-    /**
-     * @param class-string $className
-     */
     public function read(string $className): DocumentMetadata
     {
-        $reflection = new \ReflectionClass($className);
+        $class = new \ReflectionClass($className);
+        
+        $document = $this->readDocument($class);
 
-        $documentAttrs = $reflection->getAttributes(Document::class);
-        if ($documentAttrs === []) {
-            throw new MappingException(\sprintf(
-                'Class %s is not a Typesense document (missing #[Document] attribute)',
-                $className,
-            ));
-        }
+        $id = null;
 
-        /** @var Document $document */
-        $document = $documentAttrs[0]->newInstance();
-
-        $idProperties = [];
-        $fields = [];
-
-        foreach ($reflection->getProperties() as $property) {
-            $idAttrs = $property->getAttributes(Id::class);
-            if ($idAttrs !== []) {
-                $idProperties[] = $property;
-            }
-
-            $fieldAttrs = $property->getAttributes(Field::class);
-            if ($fieldAttrs !== []) {
-                /** @var Field $fieldAttr */
-                $fieldAttr = $fieldAttrs[0]->newInstance();
-                $type = $fieldAttr->type ?? $this->inferType($property, $className);
-                $optional = $fieldAttr->optional || ($property->getType() instanceof \ReflectionNamedType && $property->getType()->allowsNull());
-
-                $fields[] = new FieldMetadata(
-                    propertyName: $property->getName(),
-                    type: $type,
-                    facet: $fieldAttr->facet,
-                    sort: $fieldAttr->sort,
-                    index: $fieldAttr->index,
-                    store: $fieldAttr->store,
-                    optional: $optional,
-                    infix: $fieldAttr->infix,
-                );
+        foreach ($class->getProperties() as $property) {
+            if ($this->readAttributes($property, Id::class) !== []) {
+                if ($id !== null) {
+                    throw new MappingException(\sprintf(
+                        'Class %s has multiple #[Id] properties: %s, %s',
+                        $className,
+                        $id->getName(),
+                        $property->getName(),
+                    ));
+                }
+                $id = $property;
             }
         }
 
-        if (\count($idProperties) === 0) {
+        if ($id === null) {
             throw new MappingException(\sprintf(
                 'Class %s has no #[Id] property',
                 $className,
             ));
         }
 
-        if (\count($idProperties) > 1) {
-            throw new MappingException(\sprintf(
-                'Class %s has multiple #[Id] properties: %s',
-                $className,
-                implode(', ', array_map(fn (\ReflectionProperty $p) => $p->getName(), $idProperties)),
-            ));
-        }
-
-        $idProperty = $idProperties[0];
-        /** @var Id $idAttr */
-        $idAttr = $idProperty->getAttributes(Id::class)[0]->newInstance();
-        $idType = $idAttr->type ?? $this->inferType($idProperty, $className);
+        $idAttr = $this->readAttributes($id, Id::class)[0];
+        $idType = $idAttr->type ?? $this->inferType($id->getType(), $className, $id->getName());
 
         return new DocumentMetadata(
-            className: $className,
             collection: $document->collection,
-            defaultSortingField: $document->defaultSortingField,
-            idPropertyName: $idProperty->getName(),
+            className: $className,
+            idProperty: $id->getName(),
             idType: $idType,
-            fields: $fields,
+            fields: $this->buildFieldMetadata($class),
+            defaultSortingField: $document->defaultSortingField,
         );
     }
 
-    private function inferType(\ReflectionProperty $property, string $className): TypeInterface
+    /**
+     * @param \ReflectionClass<object> $class
+     */
+    private function readDocument(\ReflectionClass $class): Document
     {
-        $type = $property->getType();
+        $attrs = $this->readAttributes($class, Document::class);
 
+        if (count($attrs) === 0) {
+            throw new MappingException(sprintf(
+                'Class %s is not a Typesense document (missing #[Document] attribute)',
+                $class->getName(),
+            ));
+        }
+
+        return $attrs[0];
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param \ReflectionClass<object>|\ReflectionProperty|\ReflectionMethod $reflector
+     * @param class-string<T> $attributeClass
+     *
+     * @return list<T>
+     */
+    private function readAttributes(
+        \ReflectionClass|\ReflectionProperty|\ReflectionMethod $reflector,
+        string $attributeClass,
+    ): array {
+        return array_map(
+            static fn (\ReflectionAttribute $attr) => $attr->newInstance(),
+            $reflector->getAttributes($attributeClass),
+        );
+    }
+
+    /**
+     * @param \ReflectionClass<object> $class
+     *
+     * @return list<FieldMetadata>
+     */
+    private function buildFieldMetadata(\ReflectionClass $class): array
+    {
+        $className = $class->getName();
+        $fields = [];
+
+        foreach ($class->getProperties() as $property) {
+            $fieldAttrs = $this->readAttributes($property, Field::class);
+            if ($fieldAttrs !== []) {
+                $fieldAttr = $fieldAttrs[0];
+
+                $fields[] = $this->createFieldMetadata(
+                    $fieldAttr,
+                    $property->getType(),
+                    $property->getName(),
+                    $className,
+                    FieldMetadata::SOURCE_PROPERTY,
+                    $fieldAttr->denormalize ?? !$property->isVirtual(),
+                );
+            }
+        }
+
+        foreach ($class->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+            $fieldAttrs = $this->readAttributes($method, Field::class);
+            if ($fieldAttrs === []) {
+                continue;
+            }
+
+            $fieldAttr = $fieldAttrs[0];
+
+            $fields[] = $this->createFieldMetadata(
+                $fieldAttr,
+                $method->getReturnType(),
+                $method->getName(),
+                $className,
+                FieldMetadata::SOURCE_METHOD,
+                $fieldAttr->denormalize ?? false,
+            );
+        }
+
+        return $fields;
+    }
+
+    private function createFieldMetadata(
+        Field $fieldAttr,
+        ?\ReflectionType $reflectionType,
+        string $memberName,
+        string $className,
+        string $sourceType,
+        bool $denormalize,
+    ): FieldMetadata {
+        return new FieldMetadata(
+            name: $fieldAttr->name ?? $memberName,
+            source: $memberName,
+            sourceType: $sourceType,
+            denormalize: $denormalize,
+            type: $fieldAttr->type ?? $this->inferType($reflectionType, $className, $memberName),
+            facet: $fieldAttr->facet,
+            sort: $fieldAttr->sort,
+            index: $fieldAttr->index,
+            store: $fieldAttr->store,
+            optional: $fieldAttr->optional || ($reflectionType instanceof \ReflectionNamedType && $reflectionType->allowsNull()),
+            infix: $fieldAttr->infix,
+        );
+    }
+
+    private function inferType(?\ReflectionType $type, string $className, string $memberName): TypeInterface
+    {
         if (!$type instanceof \ReflectionNamedType) {
             throw new MappingException(\sprintf(
-                'Property %s::%s has no type declaration — add a type or explicit type parameter',
+                '%s::%s has no type declaration — add a type or explicit type parameter',
                 $className,
-                $property->getName(),
+                $memberName,
             ));
         }
 
@@ -115,21 +183,22 @@ final readonly class MetadataReader implements MetadataReaderInterface
             $typeName === 'float' => new FloatType(),
             $typeName === 'bool' => new BoolType(),
             $typeName === 'array' => throw new MappingException(\sprintf(
-                'Property %s::%s is an array — explicit type required on #[Field]',
+                '%s::%s is an array — explicit type required on #[Field]',
                 $className,
-                $property->getName(),
+                $memberName,
             )),
             is_subclass_of($typeName, \DateTimeInterface::class) => new DateTimeType(),
             is_subclass_of($typeName, \BackedEnum::class) => new BackedEnumType($typeName),
             is_subclass_of($typeName, \UnitEnum::class) => throw new MappingException(\sprintf(
-                'Property %s::%s uses a non-backed enum — only BackedEnum is supported',
+                '%s::%s uses a non-backed enum — only BackedEnum is supported',
                 $className,
-                $property->getName(),
+                $memberName,
             )),
             default => throw new MappingException(\sprintf(
-                'Property %s::%s has no type declaration — add a type or explicit type parameter',
+                '%s::%s has unsupported type "%s" — add an explicit type parameter on #[Field]',
                 $className,
-                $property->getName(),
+                $memberName,
+                $typeName,
             )),
         };
     }

@@ -22,7 +22,7 @@ final readonly class DoctrineDenormalizer implements DenormalizerInterface
         }
 
         $metadata = $this->registry->get($className);
-        $idProperty = $metadata->idPropertyName;
+        $idProperty = $metadata->idProperty;
 
         $ids = array_map(
             fn(array $doc) => $metadata->idType->denormalize($doc['id']),

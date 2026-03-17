@@ -7,14 +7,15 @@ namespace Enabel\Typesense\Tests\Functional;
 use Enabel\Typesense\Search\Filter;
 use Enabel\Typesense\Search\Query;
 use Enabel\Typesense\Search\Sort;
-use Enabel\Typesense\Tests\Fixtures\StringStatus;
 use Enabel\Typesense\Tests\Fixtures\FunctionalProduct;
+use Enabel\Typesense\Tests\Fixtures\ProductWithComputedFields;
+use Enabel\Typesense\Tests\Fixtures\StringStatus;
 
 trait CollectionLifecycleTestTrait
 {
     protected function getDocumentClasses(): array
     {
-        return [FunctionalProduct::class];
+        return [FunctionalProduct::class, ProductWithComputedFields::class];
     }
 
     public function testItCreatesAndDropsACollection(): void
@@ -477,6 +478,69 @@ trait CollectionLifecycleTestTrait
         self::assertArrayHasKey('found', $result);
         self::assertArrayHasKey('hits', $result);
         self::assertSame(1, $result['found']);
+    }
+
+    public function testItIndexesComputedFields(): void
+    {
+        $this->createCollection(ProductWithComputedFields::class);
+        $collection = $this->client->collection(ProductWithComputedFields::class);
+
+        $a = new ProductWithComputedFields();
+        $a->id = 1;
+        $a->title = 'Widget';
+        $a->subtitle = 'Deluxe';
+        $a->category = 'Electronics';
+        $a->internalCode = 'SKU-001';
+
+        $b = new ProductWithComputedFields();
+        $b->id = 2;
+        $b->title = 'Gadget';
+        $b->subtitle = 'Pro';
+        $b->category = 'Accessories';
+        $b->internalCode = 'SKU-002';
+
+        $collection->import([$a, $b]);
+
+        // Virtual property hook: fullTitle = title . ' - ' . subtitle
+        $response = $collection->search(
+            Query::create('Widget - Deluxe')->queryBy('fullTitle')->perPage(10),
+        );
+
+        self::assertSame(1, $response->found);
+        self::assertSame(1, $response->documents[0]->id);
+
+        // Method field: searchKeywords() = [title, category]
+        $response = $collection->search(
+            Query::create('Electronics')->queryBy('searchKeywords')->perPage(10),
+        );
+
+        self::assertSame(1, $response->found);
+        self::assertSame(1, $response->documents[0]->id);
+
+        // Renamed field: product_category
+        $response = $collection->search(
+            Query::create()->queryBy('title')->filterBy(Filter::equals('product_category', 'Accessories')),
+        );
+
+        self::assertSame(1, $response->found);
+        self::assertSame(2, $response->documents[0]->id);
+
+        // Regular properties are denormalized back
+        $found = $collection->find('1');
+        self::assertInstanceOf(ProductWithComputedFields::class, $found);
+        self::assertSame(1, $found->id);
+        self::assertSame('Widget', $found->title);
+        self::assertSame('Deluxe', $found->subtitle);
+        self::assertSame('Electronics', $found->category);
+
+        // Virtual property still works via hook after denormalization
+        self::assertSame('Widget - Deluxe', $found->fullTitle);
+
+        // Method field still works after denormalization
+        self::assertSame(['Widget', 'Electronics'], $found->searchKeywords());
+
+        // denormalize: false — internalCode is not written back to the object
+        self::assertFalse(isset($found->internalCode));
     }
 
     protected function makeProduct(

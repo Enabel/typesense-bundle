@@ -17,10 +17,9 @@ final class CachedMetadataRegistryTest extends TestCase
     public function testItDelegatesToCacheAndInnerRegistry(): void
     {
         $expected = new DocumentMetadata(
-            className: ValidProduct::class,
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: ValidProduct::class,
+            idProperty: 'id',
             idType: new IntType(),
             fields: [],
         );

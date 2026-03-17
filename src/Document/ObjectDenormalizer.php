@@ -26,25 +26,29 @@ final readonly class ObjectDenormalizer implements DenormalizerInterface
             $object = $reflection->newInstanceWithoutConstructor();
 
             $idValue = $metadata->idType->denormalize($document['id']);
-            $reflection->getProperty($metadata->idPropertyName)->setValue($object, $idValue);
+            $reflection->getProperty($metadata->idProperty)->setValue($object, $idValue);
 
             foreach ($metadata->fields as $field) {
-                if (!array_key_exists($field->propertyName, $document)) {
+                if (!$field->denormalize) {
+                    continue;
+                }
+
+                if (!array_key_exists($field->name, $document)) {
                     if ($field->optional) {
-                        $reflection->getProperty($field->propertyName)->setValue($object, null);
+                        $reflection->getProperty($field->source)->setValue($object, null);
 
                         continue;
                     }
 
                     throw new \RuntimeException(\sprintf(
                         'Missing required field "%s" in Typesense document for class "%s".',
-                        $field->propertyName,
+                        $field->name,
                         $className,
                     ));
                 }
 
-                $value = $field->type->denormalize($document[$field->propertyName]);
-                $reflection->getProperty($field->propertyName)->setValue($object, $value);
+                $value = $field->type->denormalize($document[$field->name]);
+                $reflection->getProperty($field->source)->setValue($object, $value);
             }
 
             $result[] = $object;

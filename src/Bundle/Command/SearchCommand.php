@@ -73,7 +73,7 @@ final class SearchCommand extends Command
         $metadata = $this->registry->get($className);
 
         return implode(',', array_map(
-            fn($field) => $field->propertyName,
+            fn($field) => $field->name,
             array_filter($metadata->fields, fn($field) => $field->index),
         ));
     }

@@ -6,6 +6,7 @@ namespace Enabel\Typesense\Tests\Unit\Metadata;
 
 use Enabel\Typesense\Exception\MappingException;
 use Enabel\Typesense\Metadata\DocumentMetadata;
+use Enabel\Typesense\Metadata\FieldMetadata;
 use Enabel\Typesense\Metadata\MetadataReader;
 use Enabel\Typesense\Tests\Fixtures\ArrayWithoutTypeClass;
 use Enabel\Typesense\Tests\Fixtures\MultipleIdClass;
@@ -13,6 +14,7 @@ use Enabel\Typesense\Tests\Fixtures\NoDocumentClass;
 use Enabel\Typesense\Tests\Fixtures\NoIdClass;
 use Enabel\Typesense\Tests\Fixtures\NoTypeDeclarationClass;
 use Enabel\Typesense\Tests\Fixtures\NonBackedEnumClass;
+use Enabel\Typesense\Tests\Fixtures\ProductWithComputedFields;
 use Enabel\Typesense\Tests\Fixtures\ValidProduct;
 use Enabel\Typesense\Type\BackedEnumType;
 use Enabel\Typesense\Type\BoolType;
@@ -45,14 +47,14 @@ final class MetadataReaderTest extends TestCase
     {
         $metadata = $this->reader->read(ValidProduct::class);
 
-        self::assertSame('id', $metadata->idPropertyName);
+        self::assertSame('id', $metadata->idProperty);
         self::assertInstanceOf(IntType::class, $metadata->idType);
     }
 
     public function testItInfersFieldTypesFromPropertyTypes(): void
     {
         $metadata = $this->reader->read(ValidProduct::class);
-        $fields = $this->indexByProperty($metadata);
+        $fields = $this->indexByName($metadata);
 
         self::assertInstanceOf(StringType::class, $fields['title']->type);
         self::assertInstanceOf(FloatType::class, $fields['price']->type);
@@ -65,7 +67,7 @@ final class MetadataReaderTest extends TestCase
     public function testItReadsExplicitArrayTypeFromFieldAttribute(): void
     {
         $metadata = $this->reader->read(ValidProduct::class);
-        $fields = $this->indexByProperty($metadata);
+        $fields = $this->indexByName($metadata);
 
         self::assertInstanceOf(StringType::class, $fields['tags']->type);
         self::assertSame('string[]', $fields['tags']->type->name);
@@ -74,7 +76,7 @@ final class MetadataReaderTest extends TestCase
     public function testItReadsFieldOptionsFromAttribute(): void
     {
         $metadata = $this->reader->read(ValidProduct::class);
-        $fields = $this->indexByProperty($metadata);
+        $fields = $this->indexByName($metadata);
 
         self::assertTrue($fields['title']->facet);
         self::assertFalse($fields['title']->sort);
@@ -91,10 +93,75 @@ final class MetadataReaderTest extends TestCase
     public function testItSetsOptionalTrueForNullableProperties(): void
     {
         $metadata = $this->reader->read(ValidProduct::class);
-        $fields = $this->indexByProperty($metadata);
+        $fields = $this->indexByName($metadata);
 
         self::assertTrue($fields['subtitle']->optional);
         self::assertFalse($fields['title']->optional);
+    }
+
+    public function testItSetsSourceAndDenormalizeForBackedProperties(): void
+    {
+        $metadata = $this->reader->read(ValidProduct::class);
+        $fields = $this->indexByName($metadata);
+
+        self::assertSame('title', $fields['title']->source);
+        self::assertSame(FieldMetadata::SOURCE_PROPERTY, $fields['title']->sourceType);
+        self::assertTrue($fields['title']->denormalize);
+
+        self::assertSame('price', $fields['price']->source);
+        self::assertSame(FieldMetadata::SOURCE_PROPERTY, $fields['price']->sourceType);
+        self::assertTrue($fields['price']->denormalize);
+    }
+
+    public function testItUsesCustomNameFromFieldAttribute(): void
+    {
+        $metadata = $this->reader->read(ProductWithComputedFields::class);
+        $fields = $this->indexByName($metadata);
+
+        self::assertSame('product_category', $fields['product_category']->name);
+        self::assertSame('category', $fields['product_category']->source);
+        self::assertSame(FieldMetadata::SOURCE_PROPERTY, $fields['product_category']->sourceType);
+        self::assertTrue($fields['product_category']->denormalize);
+    }
+
+    public function testItDisablesDenormalizeForVirtualProperties(): void
+    {
+        $metadata = $this->reader->read(ProductWithComputedFields::class);
+        $fields = $this->indexByName($metadata);
+
+        self::assertSame('fullTitle', $fields['fullTitle']->source);
+        self::assertSame(FieldMetadata::SOURCE_PROPERTY, $fields['fullTitle']->sourceType);
+        self::assertFalse($fields['fullTitle']->denormalize);
+    }
+
+    public function testItSetsSourceTypeMethodForMethods(): void
+    {
+        $metadata = $this->reader->read(ProductWithComputedFields::class);
+        $fields = $this->indexByName($metadata);
+
+        self::assertSame('searchKeywords', $fields['searchKeywords']->source);
+        self::assertSame(FieldMetadata::SOURCE_METHOD, $fields['searchKeywords']->sourceType);
+        self::assertFalse($fields['searchKeywords']->denormalize);
+        self::assertInstanceOf(StringType::class, $fields['searchKeywords']->type);
+        self::assertSame('string[]', $fields['searchKeywords']->type->name);
+    }
+
+    public function testItDisablesDenormalizeWhenExplicitlyFalse(): void
+    {
+        $metadata = $this->reader->read(ProductWithComputedFields::class);
+        $fields = $this->indexByName($metadata);
+
+        self::assertSame('internalCode', $fields['internalCode']->source);
+        self::assertSame(FieldMetadata::SOURCE_PROPERTY, $fields['internalCode']->sourceType);
+        self::assertFalse($fields['internalCode']->denormalize);
+    }
+
+    public function testItInfersReturnTypeFromMethods(): void
+    {
+        $metadata = $this->reader->read(ProductWithComputedFields::class);
+        $fields = $this->indexByName($metadata);
+
+        self::assertInstanceOf(StringType::class, $fields['fullTitle']->type);
     }
 
     public function testItThrowsWhenDocumentAttributeIsMissing(): void
@@ -124,7 +191,7 @@ final class MetadataReaderTest extends TestCase
     public function testItThrowsWhenArrayFieldHasNoExplicitType(): void
     {
         $this->expectException(MappingException::class);
-        $this->expectExceptionMessage('Property ' . ArrayWithoutTypeClass::class . '::tags is an array — explicit type required on #[Field]');
+        $this->expectExceptionMessage(ArrayWithoutTypeClass::class . '::tags is an array — explicit type required on #[Field]');
 
         $this->reader->read(ArrayWithoutTypeClass::class);
     }
@@ -132,7 +199,7 @@ final class MetadataReaderTest extends TestCase
     public function testItThrowsWhenFieldUsesANonBackedEnum(): void
     {
         $this->expectException(MappingException::class);
-        $this->expectExceptionMessage('Property ' . NonBackedEnumClass::class . '::status uses a non-backed enum — only BackedEnum is supported');
+        $this->expectExceptionMessage(NonBackedEnumClass::class . '::status uses a non-backed enum — only BackedEnum is supported');
 
         $this->reader->read(NonBackedEnumClass::class);
     }
@@ -140,7 +207,7 @@ final class MetadataReaderTest extends TestCase
     public function testItThrowsWhenPropertyHasNoTypeDeclaration(): void
     {
         $this->expectException(MappingException::class);
-        $this->expectExceptionMessage('Property ' . NoTypeDeclarationClass::class . '::title has no type declaration — add a type or explicit type parameter');
+        $this->expectExceptionMessage(NoTypeDeclarationClass::class . '::title has no type declaration — add a type or explicit type parameter');
 
         $this->reader->read(NoTypeDeclarationClass::class);
     }
@@ -148,11 +215,11 @@ final class MetadataReaderTest extends TestCase
     /**
      * @return array<string, \Enabel\Typesense\Metadata\FieldMetadata>
      */
-    private function indexByProperty(DocumentMetadata $metadata): array
+    private function indexByName(DocumentMetadata $metadata): array
     {
         $indexed = [];
         foreach ($metadata->fields as $field) {
-            $indexed[$field->propertyName] = $field;
+            $indexed[$field->name] = $field;
         }
 
         return $indexed;

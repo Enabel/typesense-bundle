@@ -13,11 +13,11 @@ final readonly class DocumentMetadata
      * @param FieldMetadata[] $fields
      */
     public function __construct(
-        public string $className,
         public string $collection,
-        public ?string $defaultSortingField,
-        public string $idPropertyName,
+        public string $className,
+        public string $idProperty,
         public TypeInterface $idType,
         public array $fields,
+        public ?string $defaultSortingField = null,
     ) {}
 }

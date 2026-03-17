@@ -8,6 +8,8 @@ use Symfony\Contracts\Cache\CacheInterface;
 
 final readonly class CachedMetadataRegistry implements MetadataRegistryInterface
 {
+    private const string CACHE_PREFIX = 'typesense_metadata_';
+
     public function __construct(
         private MetadataRegistryInterface $inner,
         private CacheInterface $cache,
@@ -17,7 +19,7 @@ final readonly class CachedMetadataRegistry implements MetadataRegistryInterface
     {
         /** @var DocumentMetadata */
         return $this->cache->get(
-            'typesense_metadata_' . md5($className),
+            self::CACHE_PREFIX . md5($className),
             fn () => $this->inner->get($className),
         );
     }

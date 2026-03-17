@@ -32,7 +32,7 @@ final readonly class SchemaBuilder implements SchemaBuilderInterface
     private function buildField(FieldMetadata $field): array
     {
         $schema = [
-            'name' => $field->propertyName,
+            'name' => $field->name,
             'type' => $field->type->name,
         ];
 

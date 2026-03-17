@@ -16,10 +16,9 @@ final class MetadataRegistryTest extends TestCase
     public function testItDelegatesToTheReader(): void
     {
         $expected = new DocumentMetadata(
-            className: ValidProduct::class,
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: ValidProduct::class,
+            idProperty: 'id',
             idType: new IntType(),
             fields: [],
         );
@@ -38,10 +37,9 @@ final class MetadataRegistryTest extends TestCase
     public function testItCachesMetadataPerClassName(): void
     {
         $expected = new DocumentMetadata(
-            className: ValidProduct::class,
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: ValidProduct::class,
+            idProperty: 'id',
             idType: new IntType(),
             fields: [],
         );
