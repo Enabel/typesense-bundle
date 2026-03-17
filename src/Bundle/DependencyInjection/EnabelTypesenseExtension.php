@@ -61,7 +61,7 @@ final class EnabelTypesenseExtension extends Extension
 
         $container->register(MetadataRegistryInterface::class, CachedMetadataRegistry::class)
             ->addArgument(new Reference(MetadataRegistry::class))
-            ->addArgument(new Reference('cache.app'));
+            ->addArgument(new Reference('cache.system'));
 
         $container->register(DocumentNormalizerInterface::class, DocumentNormalizer::class)
             ->addArgument(new Reference(MetadataRegistryInterface::class));
