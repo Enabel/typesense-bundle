@@ -31,10 +31,9 @@ final class CollectionTest extends TestCase
     protected function setUp(): void
     {
         $this->metadata = new DocumentMetadata(
-            className: 'App\Entity\Product',
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: 'App\Entity\Product',
+            idProperty: 'id',
             idType: new IntType(),
             fields: [],
         );

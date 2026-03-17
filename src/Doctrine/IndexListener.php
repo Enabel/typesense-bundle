@@ -51,7 +51,7 @@ final readonly class IndexListener
         try {
             assert($this->registry !== null, 'MetadataRegistryInterface is required for preRemove');
             $metadata = $this->registry->get($className);
-            $id = (new \ReflectionProperty($entity, $metadata->idPropertyName))->getValue($entity);
+            $id = (new \ReflectionProperty($entity, $metadata->idProperty))->getValue($entity);
             $this->client->collection($className)->delete((string) $id);
         } catch (TypesenseClientError $e) {
             $this->logger?->warning(\sprintf('Typesense indexing error: %s', $e->getMessage()));

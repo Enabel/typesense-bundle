@@ -76,10 +76,9 @@ final class IndexListenerTest extends TestCase
         };
 
         $metadata = new DocumentMetadata(
-            className: $entity::class,
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: $entity::class,
+            idProperty: 'id',
             idType: new IntType(),
             fields: [],
         );
@@ -186,10 +185,9 @@ final class IndexListenerTest extends TestCase
         };
 
         $metadata = new DocumentMetadata(
-            className: $entity::class,
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: $entity::class,
+            idProperty: 'id',
             idType: new IntType(),
             fields: [],
         );

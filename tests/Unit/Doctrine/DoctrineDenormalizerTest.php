@@ -35,10 +35,9 @@ final class DoctrineDenormalizerTest extends TestCase
     public function testItFetchesEntitiesByIdAndReturnsInOrder(): void
     {
         $metadata = new DocumentMetadata(
-            className: 'App\Entity\Product',
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: 'App\Entity\Product',
+            idProperty: 'id',
             idType: new IntType(),
             fields: [],
         );
@@ -75,10 +74,9 @@ final class DoctrineDenormalizerTest extends TestCase
     public function testItUsesIdPropertyNameFromMetadata(): void
     {
         $metadata = new DocumentMetadata(
-            className: 'App\Entity\Product',
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'uuid',
+            className: 'App\Entity\Product',
+            idProperty: 'uuid',
             idType: new IntType(),
             fields: [],
         );
@@ -104,10 +102,9 @@ final class DoctrineDenormalizerTest extends TestCase
     public function testItDenormalizesIdUsingIdType(): void
     {
         $metadata = new DocumentMetadata(
-            className: 'App\Entity\Product',
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: 'App\Entity\Product',
+            idProperty: 'id',
             idType: new IntType(),
             fields: [],
         );

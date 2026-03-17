@@ -30,10 +30,9 @@ final class ClientTest extends TestCase
     protected function setUp(): void
     {
         $this->metadata = new DocumentMetadata(
-            className: 'App\Entity\Product',
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: 'App\Entity\Product',
+            idProperty: 'id',
             idType: new IntType(),
             fields: [],
         );
@@ -72,10 +71,9 @@ final class ClientTest extends TestCase
         $this->expectExceptionMessage('No denormalizer registered for "App\Entity\Unknown"');
 
         $unknownMetadata = new DocumentMetadata(
-            className: 'App\Entity\Unknown',
             collection: 'unknown',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: 'App\Entity\Unknown',
+            idProperty: 'id',
             idType: new IntType(),
             fields: [],
         );

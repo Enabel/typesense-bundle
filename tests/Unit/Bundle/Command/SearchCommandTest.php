@@ -28,10 +28,9 @@ final class SearchCommandTest extends TestCase
         $this->client->method('collection')->willReturn($this->collection);
 
         $metadata = new DocumentMetadata(
-            className: 'App\Entity\Product',
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: 'App\Entity\Product',
+            idProperty: 'id',
             idType: new IntType(),
             fields: [],
         );

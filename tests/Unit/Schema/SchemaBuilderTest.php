@@ -26,14 +26,16 @@ final class SchemaBuilderTest extends TestCase
     public function testItBuildsAMinimalSchema(): void
     {
         $metadata = new DocumentMetadata(
-            className: 'App\Entity\Product',
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: 'App\Entity\Product',
+            idProperty: 'id',
             idType: new IntType(),
             fields: [
                 new FieldMetadata(
-                    propertyName: 'title',
+                    name: 'title',
+                    source: 'title',
+                    sourceType: FieldMetadata::SOURCE_PROPERTY,
+                    denormalize: true,
                     type: new StringType(),
                     facet: false,
                     sort: false,
@@ -59,14 +61,16 @@ final class SchemaBuilderTest extends TestCase
     public function testItIncludesDefaultSortingFieldInSchema(): void
     {
         $metadata = new DocumentMetadata(
-            className: 'App\Entity\Product',
             collection: 'products',
-            defaultSortingField: 'popularity',
-            idPropertyName: 'id',
+            className: 'App\Entity\Product',
+            idProperty: 'id',
             idType: new IntType(),
             fields: [
                 new FieldMetadata(
-                    propertyName: 'popularity',
+                    name: 'popularity',
+                    source: 'popularity',
+                    sourceType: FieldMetadata::SOURCE_PROPERTY,
+                    denormalize: true,
                     type: new IntType(),
                     facet: false,
                     sort: true,
@@ -76,6 +80,7 @@ final class SchemaBuilderTest extends TestCase
                     infix: false,
                 ),
             ],
+            defaultSortingField: 'popularity',
         );
 
         $schema = $this->builder->build($metadata);
@@ -86,14 +91,16 @@ final class SchemaBuilderTest extends TestCase
     public function testItIncludesNonDefaultFieldOptions(): void
     {
         $metadata = new DocumentMetadata(
-            className: 'App\Entity\Product',
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: 'App\Entity\Product',
+            idProperty: 'id',
             idType: new IntType(),
             fields: [
                 new FieldMetadata(
-                    propertyName: 'category',
+                    name: 'category',
+                    source: 'category',
+                    sourceType: FieldMetadata::SOURCE_PROPERTY,
+                    denormalize: true,
                     type: new StringType(),
                     facet: true,
                     sort: true,
@@ -103,7 +110,10 @@ final class SchemaBuilderTest extends TestCase
                     infix: true,
                 ),
                 new FieldMetadata(
-                    propertyName: 'internalNote',
+                    name: 'internalNote',
+                    source: 'internalNote',
+                    sourceType: FieldMetadata::SOURCE_PROPERTY,
+                    denormalize: true,
                     type: new StringType(),
                     facet: false,
                     sort: false,
@@ -137,14 +147,16 @@ final class SchemaBuilderTest extends TestCase
     public function testItHandlesArrayTypes(): void
     {
         $metadata = new DocumentMetadata(
-            className: 'App\Entity\Product',
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: 'App\Entity\Product',
+            idProperty: 'id',
             idType: new IntType(),
             fields: [
                 new FieldMetadata(
-                    propertyName: 'tags',
+                    name: 'tags',
+                    source: 'tags',
+                    sourceType: FieldMetadata::SOURCE_PROPERTY,
+                    denormalize: true,
                     type: new StringType(array: true),
                     facet: true,
                     sort: false,
@@ -168,14 +180,16 @@ final class SchemaBuilderTest extends TestCase
     public function testItHandlesAllFieldTypes(): void
     {
         $metadata = new DocumentMetadata(
-            className: 'App\Entity\Product',
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: 'App\Entity\Product',
+            idProperty: 'id',
             idType: new IntType(),
             fields: [
                 new FieldMetadata(
-                    propertyName: 'title',
+                    name: 'title',
+                    source: 'title',
+                    sourceType: FieldMetadata::SOURCE_PROPERTY,
+                    denormalize: true,
                     type: new StringType(),
                     facet: false,
                     sort: false,
@@ -185,7 +199,10 @@ final class SchemaBuilderTest extends TestCase
                     infix: false,
                 ),
                 new FieldMetadata(
-                    propertyName: 'count',
+                    name: 'count',
+                    source: 'count',
+                    sourceType: FieldMetadata::SOURCE_PROPERTY,
+                    denormalize: true,
                     type: new IntType(),
                     facet: false,
                     sort: false,
@@ -195,7 +212,10 @@ final class SchemaBuilderTest extends TestCase
                     infix: false,
                 ),
                 new FieldMetadata(
-                    propertyName: 'smallCount',
+                    name: 'smallCount',
+                    source: 'smallCount',
+                    sourceType: FieldMetadata::SOURCE_PROPERTY,
+                    denormalize: true,
                     type: new IntType(int32: true),
                     facet: false,
                     sort: false,
@@ -205,7 +225,10 @@ final class SchemaBuilderTest extends TestCase
                     infix: false,
                 ),
                 new FieldMetadata(
-                    propertyName: 'price',
+                    name: 'price',
+                    source: 'price',
+                    sourceType: FieldMetadata::SOURCE_PROPERTY,
+                    denormalize: true,
                     type: new FloatType(),
                     facet: false,
                     sort: false,
@@ -215,7 +238,10 @@ final class SchemaBuilderTest extends TestCase
                     infix: false,
                 ),
                 new FieldMetadata(
-                    propertyName: 'active',
+                    name: 'active',
+                    source: 'active',
+                    sourceType: FieldMetadata::SOURCE_PROPERTY,
+                    denormalize: true,
                     type: new BoolType(),
                     facet: false,
                     sort: false,
@@ -225,7 +251,10 @@ final class SchemaBuilderTest extends TestCase
                     infix: false,
                 ),
                 new FieldMetadata(
-                    propertyName: 'createdAt',
+                    name: 'createdAt',
+                    source: 'createdAt',
+                    sourceType: FieldMetadata::SOURCE_PROPERTY,
+                    denormalize: true,
                     type: new DateTimeType(),
                     facet: false,
                     sort: false,
@@ -250,10 +279,9 @@ final class SchemaBuilderTest extends TestCase
     public function testItExcludesTheIdField(): void
     {
         $metadata = new DocumentMetadata(
-            className: 'App\Entity\Product',
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: 'App\Entity\Product',
+            idProperty: 'id',
             idType: new IntType(),
             fields: [],
         );
@@ -266,14 +294,16 @@ final class SchemaBuilderTest extends TestCase
     public function testItSetsInfixTrueWhenEnabled(): void
     {
         $metadata = new DocumentMetadata(
-            className: 'App\Entity\Product',
             collection: 'products',
-            defaultSortingField: null,
-            idPropertyName: 'id',
+            className: 'App\Entity\Product',
+            idProperty: 'id',
             idType: new IntType(),
             fields: [
                 new FieldMetadata(
-                    propertyName: 'title',
+                    name: 'title',
+                    source: 'title',
+                    sourceType: FieldMetadata::SOURCE_PROPERTY,
+                    denormalize: true,
                     type: new StringType(),
                     facet: false,
                     sort: false,

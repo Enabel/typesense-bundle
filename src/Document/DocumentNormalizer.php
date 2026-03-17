@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Enabel\Typesense\Document;
 
+use Enabel\Typesense\Metadata\FieldMetadata;
 use Enabel\Typesense\Metadata\MetadataRegistryInterface;
 
 final readonly class DocumentNormalizer implements DocumentNormalizerInterface
@@ -30,19 +31,23 @@ final readonly class DocumentNormalizer implements DocumentNormalizerInterface
             $doc = [];
 
             $idValue = $metadata->idType->normalize(
-                $reflection->getProperty($metadata->idPropertyName)->getValue($object),
+                $reflection->getProperty($metadata->idProperty)->getValue($object),
             );
             assert(!is_array($idValue));
             $doc['id'] = (string) $idValue;
 
             foreach ($metadata->fields as $field) {
-                $value = $reflection->getProperty($field->propertyName)->getValue($object);
+                $value = match ($field->sourceType) {
+                    FieldMetadata::SOURCE_PROPERTY => $reflection->getProperty($field->source)->getValue($object),
+                    FieldMetadata::SOURCE_METHOD => $reflection->getMethod($field->source)->invoke($object),
+                    default => throw new \LogicException(\sprintf('Unknown source type "%s"', $field->sourceType)),
+                };
 
                 if ($value === null && $field->optional) {
                     continue;
                 }
 
-                $doc[$field->propertyName] = $field->type->normalize($value);
+                $doc[$field->name] = $field->type->normalize($value);
             }
 
             $result[] = $doc;
