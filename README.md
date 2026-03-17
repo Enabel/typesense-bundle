@@ -44,6 +44,13 @@ class Product
 
     #[Typesense\Field(optional: true)]
     public ?string $description;
+
+    // Computed field — indexed but not written back on denormalization
+    #[Typesense\Field]
+    public function searchLabel(): string
+    {
+        return "{$this->title} ({$this->price})";
+    }
 }
 ```
 
@@ -324,10 +331,11 @@ Applied to exactly one property. Marks it as the document ID.
 
 ### `#[Typesense\Field]`
 
-Applied to properties that should be indexed in Typesense.
+Applied to properties or public methods that should be indexed in Typesense.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `name` | `?string` | `null` | Typesense field name (defaults to the property/method name) |
 | `type` | `?TypeInterface` | `null` | Explicit type (required for `array` properties) |
 | `facet` | `bool` | `false` | Enable faceting |
 | `sort` | `bool` | `false` | Enable sorting |
@@ -335,6 +343,55 @@ Applied to properties that should be indexed in Typesense.
 | `store` | `bool` | `true` | Persist on disk |
 | `infix` | `bool` | `false` | Enable infix (substring) searching |
 | `optional` | `bool` | `false` | Allow absent values (auto-set for nullable properties) |
+| `denormalize` | `?bool` | `null` | Write back when denormalizing (defaults to `true` for regular properties, `false` for methods and virtual properties) |
+
+### Computed Fields (Method Mapping)
+
+`#[Field]` can be placed on a public method to index a computed value. The method's return value is called during normalization and stored in Typesense. By default, computed fields are not written back when denormalizing search results (i.e. `denormalize: false`).
+
+```php
+use Enabel\Typesense\Mapping as Typesense;
+use Enabel\Typesense\Type\StringType;
+
+#[Typesense\Document(collection: 'products')]
+class Product
+{
+    #[Typesense\Id]
+    public int $id;
+
+    public string $firstName;
+    public string $lastName;
+
+    #[Typesense\Field(type: new StringType(array: true), facet: true)]
+    public array $tags;
+
+    // Computed field — method is called during indexing
+    #[Typesense\Field]
+    public function fullName(): string
+    {
+        return "{$this->firstName} {$this->lastName}";
+    }
+}
+```
+
+The Typesense field name defaults to the method name (`fullName` above). Use `name:` to override it:
+
+```php
+#[Typesense\Field(name: 'full_name')]
+public function fullName(): string { /* ... */ }
+```
+
+To write the computed value back when denormalizing (e.g. populating a public property from search results), set `denormalize: true`:
+
+```php
+public string $fullName = '';
+
+#[Typesense\Field(denormalize: true)]
+public function computeFullName(): string
+{
+    return "{$this->firstName} {$this->lastName}";
+}
+```
 
 ## Type System
 
