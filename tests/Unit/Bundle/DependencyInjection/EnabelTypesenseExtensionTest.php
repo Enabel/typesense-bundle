@@ -75,6 +75,8 @@ final class EnabelTypesenseExtensionTest extends TestCase
         ]);
 
         self::assertFalse($container->hasDefinition(IndexListener::class));
+        self::assertTrue($container->hasDefinition(DoctrineDenormalizer::class));
+        self::assertTrue($container->hasDefinition(DoctrineDataProvider::class));
     }
 
     public function testItSetsCollectionClassesParameter(): void

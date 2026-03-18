@@ -36,11 +36,9 @@ final class EnabelTypesenseExtension extends Extension
 
         $this->registerTypesenseClient($container, $config['client']);
         $this->registerCoreServices($container);
+        $this->registerDoctrineServices($container, $config['auto_index']);
         $dataProviderMap = $this->registerCollections($container, $config);
         $this->registerCommands($container, $dataProviderMap);
-        if ($config['auto_index']) {
-            $this->registerIndexListener($container);
-        }
     }
 
     /**
@@ -138,7 +136,7 @@ final class EnabelTypesenseExtension extends Extension
             ->addTag('console.command');
     }
 
-    private function registerIndexListener(ContainerBuilder $container): void
+    private function registerDoctrineServices(ContainerBuilder $container, bool $autoIndex): void
     {
         if (!interface_exists(\Doctrine\ORM\EntityManagerInterface::class)) {
             return;
@@ -150,6 +148,10 @@ final class EnabelTypesenseExtension extends Extension
 
         $container->register(DoctrineDataProvider::class)
             ->addArgument(new Reference('doctrine.orm.entity_manager'));
+
+        if (!$autoIndex) {
+            return;
+        }
 
         $container->register(IndexListener::class)
             ->addArgument(new Reference(ClientInterface::class))
