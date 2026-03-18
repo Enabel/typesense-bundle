@@ -63,6 +63,27 @@ final class ConfigurationTest extends TestCase
         self::assertSame('App\Provider\UserProvider', $config['collections']['App\Entity\User']['data_provider']);
     }
 
+    public function testAutoIndexDefaultsToTrue(): void
+    {
+        $config = $this->process([
+            'client' => ['url' => 'http://localhost:8108', 'api_key' => 'xyz'],
+            'collections' => [],
+        ]);
+
+        self::assertTrue($config['auto_index']);
+    }
+
+    public function testAutoIndexCanBeDisabled(): void
+    {
+        $config = $this->process([
+            'client' => ['url' => 'http://localhost:8108', 'api_key' => 'xyz'],
+            'auto_index' => false,
+            'collections' => [],
+        ]);
+
+        self::assertFalse($config['auto_index']);
+    }
+
     public function testItRequiresClientUrl(): void
     {
         $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);

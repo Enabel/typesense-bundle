@@ -22,6 +22,7 @@ final class Configuration implements ConfigurationInterface
                         ->scalarNode('api_key')->isRequired()->cannotBeEmpty()->end()
                     ->end()
                 ->end()
+                ->booleanNode('auto_index')->defaultTrue()->end()
                 ->scalarNode('default_denormalizer')->defaultNull()->end()
                 ->scalarNode('default_data_provider')->defaultNull()->end()
                 ->arrayNode('collections')

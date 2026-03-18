@@ -66,6 +66,17 @@ final class EnabelTypesenseExtensionTest extends TestCase
         self::assertContains('preRemove', $events);
     }
 
+    public function testItDoesNotRegisterIndexListenerWhenAutoIndexIsFalse(): void
+    {
+        $container = $this->buildContainer([
+            'client' => ['url' => 'http://localhost:8108', 'api_key' => '123'],
+            'auto_index' => false,
+            'collections' => ['App\Entity\Product' => null],
+        ]);
+
+        self::assertFalse($container->hasDefinition(IndexListener::class));
+    }
+
     public function testItSetsCollectionClassesParameter(): void
     {
         $container = $this->buildContainer();

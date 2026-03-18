@@ -10,7 +10,6 @@ use Doctrine\ORM\Event\PreRemoveEventArgs;
 use Enabel\Typesense\ClientInterface;
 use Enabel\Typesense\Metadata\MetadataRegistryInterface;
 use Psr\Log\LoggerInterface;
-use Typesense\Exceptions\TypesenseClientError;
 
 final readonly class IndexListener
 {
@@ -53,7 +52,7 @@ final readonly class IndexListener
             $metadata = $this->registry->get($className);
             $id = (new \ReflectionProperty($entity, $metadata->idProperty))->getValue($entity);
             $this->client->collection($className)->delete((string) $id);
-        } catch (TypesenseClientError $e) {
+        } catch (\Throwable $e) {
             $this->logger?->warning(\sprintf('Typesense indexing error: %s', $e->getMessage()));
         }
     }
@@ -68,7 +67,7 @@ final readonly class IndexListener
 
         try {
             $this->client->collection($className)->upsert($entity);
-        } catch (TypesenseClientError $e) {
+        } catch (\Throwable $e) {
             $this->logger?->warning(\sprintf('Typesense indexing error: %s', $e->getMessage()));
         }
     }

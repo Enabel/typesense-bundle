@@ -38,7 +38,9 @@ final class EnabelTypesenseExtension extends Extension
         $this->registerCoreServices($container);
         $dataProviderMap = $this->registerCollections($container, $config);
         $this->registerCommands($container, $dataProviderMap);
-        $this->registerIndexListener($container);
+        if ($config['auto_index']) {
+            $this->registerIndexListener($container);
+        }
     }
 
     /**
