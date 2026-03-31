@@ -24,22 +24,22 @@ final readonly class DocumentNormalizer implements DocumentNormalizerInterface
         }
 
         $metadata = $this->registry->get($objects[0]::class);
+        $reflector = new \ReflectionClass($metadata->className);
         $result = [];
 
         foreach ($objects as $object) {
-            $reflection = new \ReflectionObject($object);
             $doc = [];
 
             $idValue = $metadata->idType->normalize(
-                $reflection->getProperty($metadata->idProperty)->getValue($object),
+                $reflector->getProperty($metadata->idProperty)->getValue($object),
             );
             assert(!is_array($idValue));
             $doc['id'] = (string) $idValue;
 
             foreach ($metadata->fields as $field) {
                 $value = match ($field->sourceType) {
-                    FieldMetadata::SOURCE_PROPERTY => $reflection->getProperty($field->source)->getValue($object),
-                    FieldMetadata::SOURCE_METHOD => $reflection->getMethod($field->source)->invoke($object),
+                    FieldMetadata::SOURCE_PROPERTY => $reflector->getProperty($field->source)->getValue($object),
+                    FieldMetadata::SOURCE_METHOD => $reflector->getMethod($field->source)->invoke($object),
                     default => throw new \LogicException(\sprintf('Unknown source type "%s"', $field->sourceType)),
                 };
 

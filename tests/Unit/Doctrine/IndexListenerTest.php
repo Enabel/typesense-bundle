@@ -8,6 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\PostPersistEventArgs;
 use Doctrine\ORM\Event\PostUpdateEventArgs;
 use Doctrine\ORM\Event\PreRemoveEventArgs;
+use Doctrine\ORM\Mapping\ClassMetadata;
 use Enabel\Typesense\ClientInterface;
 use Enabel\Typesense\CollectionInterface;
 use Enabel\Typesense\Doctrine\IndexListener;
@@ -224,7 +225,11 @@ final class IndexListenerTest extends TestCase
      */
     private function createEvent(string $eventClass, object $entity): PostPersistEventArgs|PostUpdateEventArgs|PreRemoveEventArgs
     {
+        $classMetadata = $this->createMock(ClassMetadata::class);
+        $classMetadata->method('getName')->willReturn($entity::class);
+
         $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getClassMetadata')->willReturn($classMetadata);
 
         return new $eventClass($entity, $em);
     }
