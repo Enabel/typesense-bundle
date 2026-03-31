@@ -7,6 +7,7 @@ namespace Enabel\Typesense\Doctrine;
 use Doctrine\ORM\Event\PostPersistEventArgs;
 use Doctrine\ORM\Event\PostUpdateEventArgs;
 use Doctrine\ORM\Event\PreRemoveEventArgs;
+use Doctrine\Persistence\ObjectManager;
 use Enabel\Typesense\ClientInterface;
 use Enabel\Typesense\Metadata\MetadataRegistryInterface;
 use Psr\Log\LoggerInterface;
@@ -30,38 +31,48 @@ final readonly class IndexListener
 
     public function postPersist(PostPersistEventArgs $event): void
     {
-        $this->handleUpsert($event->getObject());
+        $this->handleUpsert($event->getObject(), $event->getObjectManager());
     }
 
     public function postUpdate(PostUpdateEventArgs $event): void
     {
-        $this->handleUpsert($event->getObject());
+        $this->handleUpsert($event->getObject(), $event->getObjectManager());
     }
 
     public function preRemove(PreRemoveEventArgs $event): void
     {
         $entity = $event->getObject();
-        $className = $entity::class;
+        $className = $this->resolveClassName($entity, $event->getObjectManager());
 
-        if (!isset($this->trackedClasses[$className])) {
+        if ($className === null) {
             return;
         }
 
         try {
             assert($this->registry !== null, 'MetadataRegistryInterface is required for preRemove');
             $metadata = $this->registry->get($className);
-            $id = (new \ReflectionProperty($entity, $metadata->idProperty))->getValue($entity);
+            $id = (new \ReflectionClass($metadata->className))->getProperty($metadata->idProperty)->getValue($entity);
             $this->client->collection($className)->delete((string) $id);
         } catch (\Throwable $e) {
             $this->logger?->warning(\sprintf('Typesense indexing error: %s', $e->getMessage()));
         }
     }
 
-    private function handleUpsert(object $entity): void
+    /**
+     * @return class-string|null
+     */
+    private function resolveClassName(object $entity, ObjectManager $om): ?string
     {
-        $className = $entity::class;
+        $className = $om->getClassMetadata($entity::class)->getName();
 
-        if (!isset($this->trackedClasses[$className])) {
+        return isset($this->trackedClasses[$className]) ? $className : null;
+    }
+
+    private function handleUpsert(object $entity, ObjectManager $om): void
+    {
+        $className = $this->resolveClassName($entity, $om);
+
+        if ($className === null) {
             return;
         }
 
