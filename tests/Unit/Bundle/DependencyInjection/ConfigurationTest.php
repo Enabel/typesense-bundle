@@ -84,6 +84,27 @@ final class ConfigurationTest extends TestCase
         self::assertFalse($config['auto_index']);
     }
 
+    public function testCollectionPrefixDefaultsToEmptyString(): void
+    {
+        $config = $this->process([
+            'client' => ['url' => 'http://localhost:8108', 'api_key' => 'xyz'],
+            'collections' => [],
+        ]);
+
+        self::assertSame('', $config['collection_prefix']);
+    }
+
+    public function testCollectionPrefixCanBeSet(): void
+    {
+        $config = $this->process([
+            'client' => ['url' => 'http://localhost:8108', 'api_key' => 'xyz'],
+            'collection_prefix' => 'myapp_',
+            'collections' => [],
+        ]);
+
+        self::assertSame('myapp_', $config['collection_prefix']);
+    }
+
     public function testItRequiresClientUrl(): void
     {
         $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);

@@ -13,11 +13,30 @@ final class MetadataRegistry implements MetadataRegistryInterface
 
     public function __construct(
         private readonly MetadataReaderInterface $reader,
+        private readonly string $collectionPrefix = '',
     ) {}
 
     public function get(string $className): DocumentMetadata
     {
-        return $this->cache[$className] ??= $this->reader->read($this->resolveClass($className));
+        return $this->cache[$className] ??= $this->applyPrefix(
+            $this->reader->read($this->resolveClass($className)),
+        );
+    }
+
+    private function applyPrefix(DocumentMetadata $metadata): DocumentMetadata
+    {
+        if ($this->collectionPrefix === '') {
+            return $metadata;
+        }
+
+        return new DocumentMetadata(
+            collection: $this->collectionPrefix . $metadata->collection,
+            className: $metadata->className,
+            idProperty: $metadata->idProperty,
+            idType: $metadata->idType,
+            fields: $metadata->fields,
+            defaultSortingField: $metadata->defaultSortingField,
+        );
     }
 
     /**
