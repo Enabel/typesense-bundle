@@ -15,6 +15,7 @@ use Enabel\Typesense\Doctrine\DoctrineDenormalizer;
 use Enabel\Typesense\Doctrine\IndexListener;
 use Enabel\Typesense\Document\DocumentNormalizerInterface;
 use Enabel\Typesense\Metadata\MetadataReaderInterface;
+use Enabel\Typesense\Metadata\MetadataRegistry;
 use Enabel\Typesense\Metadata\MetadataRegistryInterface;
 use Enabel\Typesense\Schema\SchemaBuilderInterface;
 use PHPUnit\Framework\TestCase;
@@ -103,6 +104,26 @@ final class EnabelTypesenseExtensionTest extends TestCase
         self::assertSame([TypesenseClientFactory::class, 'create'], $definition->getFactory());
         self::assertSame('https://ts.example.com:443', $definition->getArgument(0));
         self::assertSame('my-key', $definition->getArgument(1));
+    }
+
+    public function testItPassesCollectionPrefixToMetadataRegistry(): void
+    {
+        $container = $this->buildContainer([
+            'client' => ['url' => 'http://localhost:8108', 'api_key' => '123'],
+            'collection_prefix' => 'myapp_',
+            'collections' => ['App\Entity\Product' => null],
+        ]);
+
+        $definition = $container->getDefinition(MetadataRegistry::class);
+        self::assertSame('myapp_', $definition->getArgument(1));
+    }
+
+    public function testItPassesEmptyPrefixByDefault(): void
+    {
+        $container = $this->buildContainer();
+
+        $definition = $container->getDefinition(MetadataRegistry::class);
+        self::assertSame('', $definition->getArgument(1));
     }
 
     public function testItRegistersCustomDenormalizerAndDataProvider(): void

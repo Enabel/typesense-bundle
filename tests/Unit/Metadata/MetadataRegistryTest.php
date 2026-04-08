@@ -57,4 +57,44 @@ final class MetadataRegistryTest extends TestCase
 
         self::assertSame($first, $second);
     }
+
+    public function testItAppliesCollectionPrefix(): void
+    {
+        $original = new DocumentMetadata(
+            collection: 'products',
+            className: ValidProduct::class,
+            idProperty: 'id',
+            idType: new IntType(),
+            fields: [],
+        );
+
+        $reader = $this->createMock(MetadataReaderInterface::class);
+        $reader->method('read')->willReturn($original);
+
+        $registry = new MetadataRegistry($reader, 'myapp_');
+        $result = $registry->get(ValidProduct::class);
+
+        self::assertSame('myapp_products', $result->collection);
+        self::assertSame(ValidProduct::class, $result->className);
+        self::assertSame('id', $result->idProperty);
+    }
+
+    public function testItDoesNotModifyCollectionWhenPrefixIsEmpty(): void
+    {
+        $original = new DocumentMetadata(
+            collection: 'products',
+            className: ValidProduct::class,
+            idProperty: 'id',
+            idType: new IntType(),
+            fields: [],
+        );
+
+        $reader = $this->createMock(MetadataReaderInterface::class);
+        $reader->method('read')->willReturn($original);
+
+        $registry = new MetadataRegistry($reader, '');
+        $result = $registry->get(ValidProduct::class);
+
+        self::assertSame($original, $result);
+    }
 }

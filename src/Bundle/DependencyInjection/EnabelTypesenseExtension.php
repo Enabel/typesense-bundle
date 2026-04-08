@@ -35,7 +35,7 @@ final class EnabelTypesenseExtension extends Extension
         $config = $this->processConfiguration($configuration, $configs);
 
         $this->registerTypesenseClient($container, $config['client']);
-        $this->registerCoreServices($container);
+        $this->registerCoreServices($container, $config['collection_prefix']);
         $this->registerDoctrineServices($container, $config['auto_index']);
         $dataProviderMap = $this->registerCollections($container, $config);
         $this->registerCommands($container, $dataProviderMap);
@@ -52,12 +52,13 @@ final class EnabelTypesenseExtension extends Extension
             ->addArgument($clientConfig['api_key']);
     }
 
-    private function registerCoreServices(ContainerBuilder $container): void
+    private function registerCoreServices(ContainerBuilder $container, string $collectionPrefix): void
     {
         $container->register(MetadataReaderInterface::class, MetadataReader::class);
 
         $container->register(MetadataRegistry::class)
-            ->addArgument(new Reference(MetadataReaderInterface::class));
+            ->addArgument(new Reference(MetadataReaderInterface::class))
+            ->addArgument($collectionPrefix);
 
         $container->register(MetadataRegistryInterface::class, CachedMetadataRegistry::class)
             ->addArgument(new Reference(MetadataRegistry::class))
