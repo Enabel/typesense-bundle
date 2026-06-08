@@ -19,6 +19,8 @@ final class Query
     /** @var string[] */
     private array $facetByFields = [];
 
+    private ?string $facetQuery = null;
+
     private ?int $maxFacetValues = null;
     private ?int $page = null;
     private ?int $perPage = null;
@@ -68,6 +70,13 @@ final class Query
         return $this;
     }
 
+    public function facetQuery(string $facetQuery): self
+    {
+        $this->facetQuery = $facetQuery;
+
+        return $this;
+    }
+
     public function maxFacetValues(int $max): self
     {
         $this->maxFacetValues = $max;
@@ -112,6 +121,10 @@ final class Query
 
         if ($this->facetByFields !== []) {
             $params['facet_by'] = implode(',', $this->facetByFields);
+        }
+
+        if ($this->facetQuery !== null) {
+            $params['facet_query'] = $this->facetQuery;
         }
 
         if ($this->maxFacetValues !== null) {

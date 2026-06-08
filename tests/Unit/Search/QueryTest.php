@@ -81,6 +81,15 @@ final class QueryTest extends TestCase
         self::assertSame('category,brand', $params['facet_by']);
     }
 
+    public function testItSetsFacetQuery(): void
+    {
+        $params = Query::create()
+            ->facetQuery('category:phone')
+            ->toParams();
+
+        self::assertSame('category:phone', $params['facet_query']);
+    }
+
     public function testItSetsMaxFacetValues(): void
     {
         $params = Query::create()
@@ -142,6 +151,7 @@ final class QueryTest extends TestCase
         self::assertSame($query, $query->sortBy('name'));
         self::assertSame($query, $query->thenSortBy('price'));
         self::assertSame($query, $query->facetBy('cat'));
+        self::assertSame($query, $query->facetQuery('cat:x'));
         self::assertSame($query, $query->maxFacetValues(10));
         self::assertSame($query, $query->page(1));
         self::assertSame($query, $query->perPage(10));
