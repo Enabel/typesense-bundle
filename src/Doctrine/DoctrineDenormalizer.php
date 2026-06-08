@@ -31,17 +31,21 @@ final readonly class DoctrineDenormalizer implements DenormalizerInterface
 
         $entities = $this->entityManager->getRepository($className)->findBy([$idProperty => $ids]);
 
-        // Index entities by their ID for O(1) lookup
+        // Index entities by their normalized (scalar) ID for O(1) lookup.
+        // The raw id property may be an object (e.g. Symfony Ulid), which cannot be
+        // used as an array key, so we key by the normalized id cast to string.
         $indexed = [];
         foreach ($entities as $entity) {
-            $id = (new \ReflectionProperty($entity, $idProperty))->getValue($entity);
-            $indexed[$id] = $entity;
+            $idValue = (new \ReflectionProperty($entity, $idProperty))->getValue($entity);
+            $normalizedId = $metadata->idType->normalize($idValue);
+            assert(!is_array($normalizedId));
+            $indexed[(string) $normalizedId] = $entity;
         }
 
-        // Map back in input order, null for missing
+        // Map back in input order (using the Typesense document id), null for missing
         return array_map(
-            fn(mixed $id) => $indexed[$id] ?? null,
-            $ids,
+            fn(array $doc) => $indexed[(string) $doc['id']] ?? null,
+            $documents,
         );
     }
 }

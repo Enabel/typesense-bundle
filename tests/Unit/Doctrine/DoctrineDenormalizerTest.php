@@ -10,6 +10,7 @@ use Enabel\Typesense\Doctrine\DoctrineDenormalizer;
 use Enabel\Typesense\Metadata\DocumentMetadata;
 use Enabel\Typesense\Metadata\MetadataRegistryInterface;
 use Enabel\Typesense\Type\IntType;
+use Enabel\Typesense\Type\StringType;
 use PHPUnit\Framework\TestCase;
 
 final class DoctrineDenormalizerTest extends TestCase
@@ -97,6 +98,55 @@ final class DoctrineDenormalizerTest extends TestCase
         );
 
         self::assertSame([null], $result);
+    }
+
+    public function testItIndexesEntitiesByNormalizedStringIdForObjectIds(): void
+    {
+        // Reproduces the Symfony Ulid case: the entity id property holds an object,
+        // which cannot be used as an array key. The denormalizer must index by the
+        // normalized id cast to string and still return entities in document order.
+        $metadata = new DocumentMetadata(
+            collection: 'products',
+            className: 'App\Entity\Product',
+            idProperty: 'id',
+            idType: new StringType(),
+            fields: [],
+        );
+
+        $this->registry->method('get')->willReturn($metadata);
+
+        $makeId = static fn (string $value): \Stringable => new class($value) implements \Stringable {
+            public function __construct(private readonly string $value)
+            {
+            }
+
+            public function __toString(): string
+            {
+                return $this->value;
+            }
+        };
+
+        $entityA = new \stdClass();
+        $entityA->id = $makeId('01ARZ3NDEKTSV4RRFFQ69G5FAV');
+        $entityB = new \stdClass();
+        $entityB->id = $makeId('01BX5ZZKBKACTAV9WEVGEMMVRZ');
+
+        $repo = $this->createMock(EntityRepository::class);
+        $this->em->method('getRepository')->willReturn($repo);
+
+        $repo->expects(self::once())
+            ->method('findBy')
+            ->with(['id' => ['01ARZ3NDEKTSV4RRFFQ69G5FAV', '01BX5ZZKBKACTAV9WEVGEMMVRZ']])
+            ->willReturn([$entityA, $entityB]);
+
+        $documents = [
+            ['id' => '01ARZ3NDEKTSV4RRFFQ69G5FAV', 'title' => 'A'],
+            ['id' => '01BX5ZZKBKACTAV9WEVGEMMVRZ', 'title' => 'B'],
+        ];
+
+        $result = $this->denormalizer->denormalize($documents, 'App\Entity\Product');
+
+        self::assertSame([$entityA, $entityB], $result);
     }
 
     public function testItDenormalizesIdUsingIdType(): void
