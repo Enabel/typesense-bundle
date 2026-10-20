@@ -178,4 +178,58 @@ final class FilterTest extends TestCase
 
         $build('x`] || country:!=[`zzz');
     }
+
+    public function testItDoesNotLeakTheRejectedValueInTheExceptionMessage(): void
+    {
+        try {
+            Filter::equals('country', 'x` || secret');
+            self::fail('Expected an exception.');
+        } catch (\InvalidArgumentException $e) {
+            self::assertStringNotContainsString('secret', $e->getMessage());
+        }
+    }
+
+    public function testItAcceptsNestedFieldNames(): void
+    {
+        self::assertSame('address.city:=`Brussels`', (string) Filter::equals('address.city', 'Brussels'));
+    }
+
+    /**
+     * @return iterable<string, array{\Closure(string): Filter}>
+     */
+    public static function fieldFilters(): iterable
+    {
+        yield 'equals' => [static fn (string $field): Filter => Filter::equals($field, 'BE')];
+        yield 'notEquals' => [static fn (string $field): Filter => Filter::notEquals($field, 'BE')];
+        yield 'matches' => [static fn (string $field): Filter => Filter::matches($field, 'wire*')];
+        yield 'lessThan' => [static fn (string $field): Filter => Filter::lessThan($field, 10)];
+        yield 'in' => [static fn (string $field): Filter => Filter::in($field, ['BE'])];
+        yield 'notIn' => [static fn (string $field): Filter => Filter::notIn($field, ['BE'])];
+        yield 'between' => [static fn (string $field): Filter => Filter::between($field, 1, 2)];
+    }
+
+    /**
+     * @param \Closure(string): Filter $build
+     */
+    #[DataProvider('fieldFilters')]
+    public function testItRejectsFieldNamesCarryingFilterSyntax(\Closure $build): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $build('x:=1 || country');
+    }
+
+    public function testItIgnoresEmptyGroups(): void
+    {
+        $filter = Filter::all(Filter::equals('a', 'x'), Filter::any(), Filter::all());
+
+        self::assertSame('a:=`x`', (string) $filter);
+    }
+
+    public function testItDoesNotParenthesiseASingleFilterGroup(): void
+    {
+        $filter = Filter::all(Filter::equals('a', 'x'), Filter::any(Filter::equals('b', 'y')));
+
+        self::assertSame('a:=`x` && b:=`y`', (string) $filter);
+    }
 }
