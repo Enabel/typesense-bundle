@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Enabel\Typesense\Tests\Unit\Search;
 
 use Enabel\Typesense\Search\Filter;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class FilterTest extends TestCase
@@ -126,8 +127,55 @@ final class FilterTest extends TestCase
         );
 
         self::assertSame(
-            'in_stock:=true && category:=`phones` || category:=`tablets`',
+            'in_stock:=true && (category:=`phones` || category:=`tablets`)',
             (string) $filter,
         );
+    }
+
+    public function testItGroupsAllFiltersNestedInAny(): void
+    {
+        $filter = Filter::any(
+            Filter::all(Filter::equals('in_stock', true), Filter::greaterThan('price', 10)),
+            Filter::equals('featured', true),
+        );
+
+        self::assertSame('(in_stock:=true && price:>10) || featured:=true', (string) $filter);
+    }
+
+    public function testItKeepsSecurityFiltersBoundWhenCombinedWithAny(): void
+    {
+        $filter = Filter::all(
+            Filter::equals('confidentiality', 'NORMAL'),
+            Filter::any(Filter::equals('country', 'BE'), Filter::equals('country', 'RW')),
+            Filter::any(Filter::equals('status', 'open'), Filter::equals('status', 'closed')),
+        );
+
+        self::assertSame(
+            'confidentiality:=`NORMAL` && (country:=`BE` || country:=`RW`) && (status:=`open` || status:=`closed`)',
+            (string) $filter,
+        );
+    }
+
+    /**
+     * @return iterable<string, array{\Closure(string): Filter}>
+     */
+    public static function quotedValueFilters(): iterable
+    {
+        yield 'equals' => [static fn (string $value): Filter => Filter::equals('country', $value)];
+        yield 'notEquals' => [static fn (string $value): Filter => Filter::notEquals('country', $value)];
+        yield 'greaterThan' => [static fn (string $value): Filter => Filter::greaterThan('country', $value)];
+        yield 'in' => [static fn (string $value): Filter => Filter::in('country', ['BE', $value])];
+        yield 'notIn' => [static fn (string $value): Filter => Filter::notIn('country', ['BE', $value])];
+    }
+
+    /**
+     * @param \Closure(string): Filter $build
+     */
+    #[DataProvider('quotedValueFilters')]
+    public function testItRejectsStringValuesContainingABacktick(\Closure $build): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $build('x`] || country:!=[`zzz');
     }
 }

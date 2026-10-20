@@ -463,6 +463,34 @@ trait CollectionLifecycleTestTrait
         self::assertSame(2, $response->found);
     }
 
+    public function testItKeepsAnyFiltersGroupedInsideAll(): void
+    {
+        $this->createCollection(FunctionalProduct::class);
+        $collection = $this->client->collection(FunctionalProduct::class);
+
+        $collection->import([
+            $this->makeProduct(1, 'Cheap', 10.0, inStock: false),
+            $this->makeProduct(2, 'Expensive', 200.0, inStock: false),
+            $this->makeProduct(3, 'Mid', 50.0, inStock: true),
+        ]);
+
+        // Ungrouped, Typesense reads this left to right as
+        // (inStock && price < 20) || price > 100 and returns product 2.
+        $response = $collection->search(
+            Query::create()->queryBy('title')->filterBy(
+                Filter::all(
+                    Filter::equals('inStock', true),
+                    Filter::any(
+                        Filter::lessThan('price', 20.0),
+                        Filter::greaterThan('price', 100.0),
+                    ),
+                ),
+            ),
+        );
+
+        self::assertSame(0, $response->found);
+    }
+
     public function testItReturnsRawSearchResults(): void
     {
         $this->createCollection(FunctionalProduct::class);

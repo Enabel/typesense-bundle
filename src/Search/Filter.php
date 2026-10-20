@@ -8,6 +8,7 @@ final readonly class Filter implements \Stringable
 {
     private function __construct(
         private string $expression,
+        private bool $isGroup = false,
     ) {}
 
     public static function equals(string $field, string|int|float|bool $value): self
@@ -72,17 +73,26 @@ final readonly class Filter implements \Stringable
 
     public static function all(self ...$filters): self
     {
-        return new self(implode(' && ', array_map(fn(self $f) => $f->expression, $filters)));
+        return new self(implode(' && ', array_map(self::operand(...), $filters)), true);
     }
 
     public static function any(self ...$filters): self
     {
-        return new self(implode(' || ', array_map(fn(self $f) => $f->expression, $filters)));
+        return new self(implode(' || ', array_map(self::operand(...), $filters)), true);
     }
 
     public function __toString(): string
     {
         return $this->expression;
+    }
+
+    /**
+     * Typesense gives && and || the same precedence and evaluates them left to
+     * right, so a nested group must be parenthesised to keep its meaning.
+     */
+    private static function operand(self $filter): string
+    {
+        return $filter->isGroup ? \sprintf('(%s)', $filter->expression) : $filter->expression;
     }
 
     private static function formatValue(string|int|float|bool $value): string
@@ -92,6 +102,13 @@ final readonly class Filter implements \Stringable
         }
 
         if (is_string($value)) {
+            // Typesense has no way to escape a backtick inside a quoted value:
+            // one would close the quoting and let the rest of the value be
+            // parsed as filter syntax.
+            if (str_contains($value, '`')) {
+                throw new \InvalidArgumentException(\sprintf('Filter values cannot contain a backtick, got "%s".', $value));
+            }
+
             return \sprintf('`%s`', $value);
         }
 
