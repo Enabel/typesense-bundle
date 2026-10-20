@@ -114,12 +114,14 @@ final readonly class Filter implements \Stringable
 
     /**
      * Field names are not quoted in Typesense filters, so one carrying filter
-     * syntax ("x:=1 || country") would inject its own clauses.
+     * syntax ("x:=1 || country") would inject its own clauses. Only the
+     * characters that mean something to the filter parser are refused, so
+     * names such as "product-name" or "prénom" keep working.
      */
     private static function field(string $field): string
     {
-        if (1 !== preg_match('/^\w+(\.\w+)*$/', $field)) {
-            throw new \InvalidArgumentException('Filter field names may only contain letters, digits, underscores and dots.');
+        if (1 !== preg_match('/^[^\s\p{C}:=!<>&|()\[\]{},`]+\z/u', $field)) {
+            throw new \InvalidArgumentException('Filter field names cannot be empty or contain whitespace or filter syntax characters.');
         }
 
         return $field;

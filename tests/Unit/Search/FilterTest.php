@@ -189,9 +189,43 @@ final class FilterTest extends TestCase
         }
     }
 
-    public function testItAcceptsNestedFieldNames(): void
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function validFieldNames(): iterable
     {
-        self::assertSame('address.city:=`Brussels`', (string) Filter::equals('address.city', 'Brussels'));
+        yield 'nested' => ['address.city'];
+        yield 'hyphenated' => ['product-name'];
+        yield 'non-ASCII' => ['prénom'];
+    }
+
+    #[DataProvider('validFieldNames')]
+    public function testItAcceptsFieldNamesTypesenseAllows(string $field): void
+    {
+        self::assertSame($field.':=`x`', (string) Filter::equals($field, 'x'));
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function invalidFieldNames(): iterable
+    {
+        yield 'empty' => [''];
+        yield 'trailing newline' => ["country\n"];
+        yield 'space' => ['a b'];
+        yield 'and' => ['a&&b'];
+        yield 'parenthesis' => ['(country'];
+        yield 'bracket' => ['country]'];
+        yield 'backtick' => ['coun`try'];
+        yield 'colon' => ['a:b'];
+    }
+
+    #[DataProvider('invalidFieldNames')]
+    public function testItRejectsFieldNamesWithFilterSyntaxCharacters(string $field): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        Filter::equals($field, 'x');
     }
 
     /**
