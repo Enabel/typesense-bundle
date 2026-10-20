@@ -436,6 +436,12 @@ Filter::all($filter1, $filter2);  // AND
 Filter::any($filter1, $filter2);  // OR
 ```
 
+String values are wrapped in backticks. Typesense cannot escape a backtick inside them, so a string value containing one throws an `\InvalidArgumentException`. Field names are not quoted, so an empty name, or one containing whitespace, control characters or filter syntax (`` :=!<>&|()[]{},` ``), throws an `\InvalidArgumentException`.
+
+Even so, `Filter::matches()` passes its value through unquoted: never feed it user input. Map user choices of field onto a fixed list rather than passing them through.
+
+Nested `all()` / `any()` groups are parenthesised, since Typesense gives `&&` and `||` the same precedence and evaluates them left to right. Empty groups (e.g. `Filter::any(...[])`) are dropped.
+
 ### Response Objects
 
 #### `Response` (standard search)

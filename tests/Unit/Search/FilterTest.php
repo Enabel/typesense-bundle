@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Enabel\Typesense\Tests\Unit\Search;
 
 use Enabel\Typesense\Search\Filter;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class FilterTest extends TestCase
@@ -126,8 +127,143 @@ final class FilterTest extends TestCase
         );
 
         self::assertSame(
-            'in_stock:=true && category:=`phones` || category:=`tablets`',
+            'in_stock:=true && (category:=`phones` || category:=`tablets`)',
             (string) $filter,
         );
+    }
+
+    public function testItGroupsAllFiltersNestedInAny(): void
+    {
+        $filter = Filter::any(
+            Filter::all(Filter::equals('in_stock', true), Filter::greaterThan('price', 10)),
+            Filter::equals('featured', true),
+        );
+
+        self::assertSame('(in_stock:=true && price:>10) || featured:=true', (string) $filter);
+    }
+
+    public function testItKeepsSecurityFiltersBoundWhenCombinedWithAny(): void
+    {
+        $filter = Filter::all(
+            Filter::equals('confidentiality', 'NORMAL'),
+            Filter::any(Filter::equals('country', 'BE'), Filter::equals('country', 'RW')),
+            Filter::any(Filter::equals('status', 'open'), Filter::equals('status', 'closed')),
+        );
+
+        self::assertSame(
+            'confidentiality:=`NORMAL` && (country:=`BE` || country:=`RW`) && (status:=`open` || status:=`closed`)',
+            (string) $filter,
+        );
+    }
+
+    /**
+     * @return iterable<string, array{\Closure(string): Filter}>
+     */
+    public static function quotedValueFilters(): iterable
+    {
+        yield 'equals' => [static fn (string $value): Filter => Filter::equals('country', $value)];
+        yield 'notEquals' => [static fn (string $value): Filter => Filter::notEquals('country', $value)];
+        yield 'greaterThan' => [static fn (string $value): Filter => Filter::greaterThan('country', $value)];
+        yield 'in' => [static fn (string $value): Filter => Filter::in('country', ['BE', $value])];
+        yield 'notIn' => [static fn (string $value): Filter => Filter::notIn('country', ['BE', $value])];
+    }
+
+    /**
+     * @param \Closure(string): Filter $build
+     */
+    #[DataProvider('quotedValueFilters')]
+    public function testItRejectsStringValuesContainingABacktick(\Closure $build): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $build('x`] || country:!=[`zzz');
+    }
+
+    public function testItDoesNotLeakTheRejectedValueInTheExceptionMessage(): void
+    {
+        try {
+            Filter::equals('country', 'x` || secret');
+            self::fail('Expected an exception.');
+        } catch (\InvalidArgumentException $e) {
+            self::assertStringNotContainsString('secret', $e->getMessage());
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function validFieldNames(): iterable
+    {
+        yield 'nested' => ['address.city'];
+        yield 'hyphenated' => ['product-name'];
+        yield 'non-ASCII' => ['prénom'];
+    }
+
+    #[DataProvider('validFieldNames')]
+    public function testItAcceptsFieldNamesTypesenseAllows(string $field): void
+    {
+        self::assertSame($field.':=`x`', (string) Filter::equals($field, 'x'));
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function invalidFieldNames(): iterable
+    {
+        yield 'empty' => [''];
+        yield 'trailing newline' => ["country\n"];
+        yield 'space' => ['a b'];
+        yield 'and' => ['a&&b'];
+        yield 'parenthesis' => ['(country'];
+        yield 'bracket' => ['country]'];
+        yield 'backtick' => ['coun`try'];
+        yield 'colon' => ['a:b'];
+    }
+
+    #[DataProvider('invalidFieldNames')]
+    public function testItRejectsFieldNamesWithFilterSyntaxCharacters(string $field): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        Filter::equals($field, 'x');
+    }
+
+    /**
+     * @return iterable<string, array{\Closure(string): Filter}>
+     */
+    public static function fieldFilters(): iterable
+    {
+        yield 'equals' => [static fn (string $field): Filter => Filter::equals($field, 'BE')];
+        yield 'notEquals' => [static fn (string $field): Filter => Filter::notEquals($field, 'BE')];
+        yield 'matches' => [static fn (string $field): Filter => Filter::matches($field, 'wire*')];
+        yield 'lessThan' => [static fn (string $field): Filter => Filter::lessThan($field, 10)];
+        yield 'in' => [static fn (string $field): Filter => Filter::in($field, ['BE'])];
+        yield 'notIn' => [static fn (string $field): Filter => Filter::notIn($field, ['BE'])];
+        yield 'between' => [static fn (string $field): Filter => Filter::between($field, 1, 2)];
+    }
+
+    /**
+     * @param \Closure(string): Filter $build
+     */
+    #[DataProvider('fieldFilters')]
+    public function testItRejectsFieldNamesCarryingFilterSyntax(\Closure $build): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $build('x:=1 || country');
+    }
+
+    public function testItIgnoresEmptyGroups(): void
+    {
+        $filter = Filter::all(Filter::equals('a', 'x'), Filter::any(), Filter::all());
+
+        self::assertSame('a:=`x`', (string) $filter);
+    }
+
+    public function testItDoesNotParenthesiseASingleFilterGroup(): void
+    {
+        $filter = Filter::all(Filter::equals('a', 'x'), Filter::any(Filter::equals('b', 'y')));
+
+        self::assertSame('a:=`x` && b:=`y`', (string) $filter);
     }
 }
