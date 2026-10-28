@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  pull_request: ~
+  push:
+    branches: ['main']
+
+jobs:
+  tests:
+    name: PHP ${{ matrix.php }} (${{ matrix.name }} deps)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '8.4'
+            name: highest
+            flags: '--prefer-stable'
+          - php: '8.5'
+            name: highest
+            flags: '--prefer-stable'
+          - php: '8.4'
+            name: lowest
+            flags: '--prefer-lowest --prefer-stable'
+    services:
+      typesense-v29:
+        image: typesense/typesense:29.0
+        env:
+          TYPESENSE_API_KEY: '123'
+          TYPESENSE_DATA_DIR: /tmp
+        ports:
+          - 8109:8108
+      typesense-v30:
+        image: typesense/typesense:30.1
+        env:
+          TYPESENSE_API_KEY: '123'
+          TYPESENSE_DATA_DIR: /tmp
+        ports:
+          - 8110:8108
+    env:
+      TYPESENSE_V29_URL: http://localhost:8109
+      TYPESENSE_V30_URL: http://localhost:8110
+      TYPESENSE_API_KEY: '123'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update ${{ matrix.flags }} --prefer-dist --no-progress
+
+      - name: Wait for Typesense
+        run: |
+          for port in 8109 8110; do
+            timeout 60 sh -c "until curl -sf http://localhost:$port/health; do sleep 2; done"
+          done
+
+      - name: Run tests
+        run: vendor/bin/phpunit --no-coverage
+
+  composer-validate:
+    name: Validate composer.json
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Validate
+        run: composer validate
+
+  static-analysis:
+    name: PHPStan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --prefer-stable --no-progress
+
+      - name: Run PHPStan
+        run: vendor/bin/phpstan analyse --no-progress
