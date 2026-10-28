@@ -6,7 +6,7 @@
     "keywords": ["typesense", "search"],
     "require": {
         "php": ">=8.4",
-        "typesense/typesense-php": "^4.9 || ^5.2",
+        "typesense/typesense-php": "^5.2",
         "symfony/cache-contracts": "^3.0"
     },
     "require-dev": {
@@ -16,6 +16,9 @@
         "symfony/console": "^8.0",
         "symfony/framework-bundle": "^8.0",
         "symfony/http-client": "^8.0"
+    },
+    "conflict": {
+        "php-http/client-common": "<2.0"
     },
     "suggest": {
         "doctrine/orm": "Required for Doctrine integration (^3.0)",
@@ -33,6 +36,9 @@
         }
     },
     "config": {
+        "allow-plugins": {
+            "php-http/discovery": false
+        },
         "sort-packages": true
     },
     "minimum-stability": "stable"
