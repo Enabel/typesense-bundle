@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: enabel/.github/.github/workflows/symfony-bundle.yml@v1
+    with:
+      # One server per major tested in tests/Functional (TYPESENSE_V<major>_URL).
+      typesense: '29.0 30.2'
