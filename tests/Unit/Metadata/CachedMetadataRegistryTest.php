@@ -33,7 +33,7 @@ final class CachedMetadataRegistryTest extends TestCase
         $cache = $this->createMock(CacheInterface::class);
         $cache->expects(self::exactly(2))
             ->method('get')
-            ->with('typesense_metadata_' . md5(ValidProduct::class), self::isType('callable'))
+            ->with('typesense_metadata_' . md5(ValidProduct::class), self::callback(is_callable(...)))
             ->willReturnCallback(function (string $key, callable $callback) use (&$cached) {
                 return $cached ??= $callback();
             });
