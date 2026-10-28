@@ -5,6 +5,9 @@ on:
   push:
     branches: ['main']
 
+permissions:
+  contents: read
+
 jobs:
   tests:
     name: PHP ${{ matrix.php }} (${{ matrix.name }} deps)
