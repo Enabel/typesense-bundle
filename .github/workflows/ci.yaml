@@ -27,7 +27,7 @@ jobs:
             flags: '--prefer-lowest --prefer-stable'
     services:
       typesense-v29:
-        image: typesense/typesense:29.0
+        image: typesense/typesense:29.1
         env:
           TYPESENSE_API_KEY: '123'
           TYPESENSE_DATA_DIR: /tmp

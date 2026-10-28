@@ -13,7 +13,7 @@ services:
       - .:/app
 
   typesense-v29:
-    image: typesense/typesense:29.0
+    image: typesense/typesense:29.1
     command: '--data-dir /data --api-key=123 --enable-cors'
     volumes:
       - ./docker/typesense/data-v29:/data
